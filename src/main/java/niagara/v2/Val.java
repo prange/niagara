@@ -2,7 +2,6 @@ package niagara.v2;
 
 import fj.F;
 import fj.data.Either;
-import fj.function.Effect1;
 import niagara.Cause;
 
 public class Val<A> {
@@ -20,11 +19,6 @@ public class Val<A> {
 
     public static <A> Val<A> halt(Cause c) {
         return new Val<>( Either.left( c ) );
-    }
-
-    public void onHaltElse(Effect1<Cause> effect, Effect1<Val<A>> normal) {
-        content.left().foreachDoEffect( effect );
-        content.right().map( v -> this ).right().foreachDoEffect( normal );
     }
 
     public <B> B fold(F<Cause, B> onHalt, F<A, B> onValue) {

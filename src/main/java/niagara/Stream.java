@@ -1,10 +1,8 @@
 package niagara;
 
-import fj.F;
-import fj.F2;
-import fj.P;
-import fj.P2;
+import fj.*;
 import fj.data.List;
+import fj.data.Option;
 import fj.function.Effect1;
 
 import java.util.concurrent.Executors;
@@ -45,35 +43,48 @@ public abstract class Stream<A> {
         );
     }
 
+
     /**
      * Joins this stream with another stream. The resulting stream emits pairs. The value from the current emitting input
      * is paired with the last emitted input from the other. tee() is inderministic and does not zip to stream with one from each
      * input stream. The stream halts when one of the input streams halt.
+     *
      * @param other
      * @param <B>
      * @return
      */
 
     public <B> Stream<P2<A, B>> tee(Stream<B> other) {
-        return Stream.<A,B,Stream<P2<A,B>>>fold( this, other ).fold(
-                (haltA, haltB) -> halt( haltA.cause.onException( e -> true, () -> false ) ? haltA.cause: haltB.cause ),
-                (haltA, emitB) -> halt(haltA.cause),
-                (haltA, awaitB) -> halt(haltA.cause),
-                (emitA, haltB) -> halt(haltB.cause),
-                (emitA, emitB) -> emit( P.p( emitA.value, emitB.value ), emitA.next.tee( emitB.next ) ),
-                (awaitA,emitA)->null,
-                (emitA,awaitB)->null,
-                (awaitA,awaitB)->null,
-                (await,halt)->halt(halt.cause)
-                );
+        return tee( other, Option.<A>none(), Option.<B>none() );
     }
+    private <B> Stream<P2<A, B>> tee(Stream<B> other, Option<A> leftCache, Option<B> rightCache) {
+        return Stream.<A, B, Stream<P2<A, B>>>fold( this, other ).<Stream<P2<A, B>>>fold(
+                (haltA, haltB) -> halt( haltA.cause.onException( e -> true, () -> false ) ? haltA.cause : haltB.cause ),
+                (haltA, emitB) -> halt( haltA.cause ),
+                (haltA, awaitB) -> halt( haltA.cause ),
+                (emitA, haltB) -> halt( haltB.cause ),
+                (emitA, emitB) -> emit( P.p( emitA.value, emitB.value ), emitA.next.tee( emitB.next, Option.some( emitA.value ), Option.some( emitB.value ) ) ),
+                (awaitA, emitB) ->
+                        leftCache.option(
+                                awaitA.tee( emitB.next, leftCache, Option.some( emitB.value ) ),
+                                (A a) -> Stream.emit( P.p( a, emitB.value ), awaitA.tee( emitB.next, leftCache, Option.some( emitB.value ) ) ) ),
+                (emitA, awaitB) ->
+                        rightCache.option(
+                                emitA.next.tee( awaitB, Option.some( emitA.value ), rightCache ),
+                                (B b) -> Stream.emit( P.p( emitA.value, b ), emitA.next.tee( awaitB, leftCache, Option.some( b ) ) )
+                        ),
+                (awaitA, awaitB) -> Stream.<P2<A, B>>await( null ),
+                (await, halt) -> halt( halt.cause )
+        );
+    }
+
 
     //Catamorphism
 
     public abstract <B> B fold(F<Await<A>, B> onAwait, F<Emit<A>, B> onEmit, F<Halt<A>, B> onHalt);
 
     public static <A, B, C> FoldBoth<A, B, C> fold(Stream<A> a, Stream<B> b) {
-        return (haltHalt, haltEmit, haltAwait, emitHalt, emitEmit, awaitEmit, emitAwait, awaitAwait,awaitHalt) -> a.fold(
+        return (haltHalt, haltEmit, haltAwait, emitHalt, emitEmit, awaitEmit, emitAwait, awaitAwait, awaitHalt) -> a.fold(
                 awaitA -> b.fold( awaitB -> awaitAwait.f( awaitA, awaitB ), emitB -> awaitEmit.f( awaitA, emitB ), haltB -> awaitHalt.f( awaitA, haltB ) ),
                 emitA -> b.fold( awaitB -> emitAwait.f( emitA, awaitB ), emitB -> emitEmit.f( emitA, emitB ), haltB -> emitHalt.f( emitA, haltB ) ),
                 haltA -> b.fold( awaitB -> haltAwait.f( haltA, awaitB ), emitB -> haltEmit.f( haltA, emitB ), haltB -> haltHalt.f( haltA, haltB ) )
@@ -91,7 +102,7 @@ public abstract class Stream<A> {
                 F2<Await<A>, Emit<B>, C> awaitEmit,
                 F2<Emit<A>, Await<B>, C> emitAwait,
                 F2<Await<A>, Await<B>, C> awaitAwait,
-                F2<Await<A>,Halt<B>,C> awaitHalt
+                F2<Await<A>, Halt<B>, C> awaitHalt
         );
     }
 
