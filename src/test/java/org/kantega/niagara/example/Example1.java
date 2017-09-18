@@ -1,4 +1,4 @@
-package niagara.example;
+package org.kantega.niagara.example;
 
 import org.kantega.niagara.Block;
 import org.kantega.niagara.Blocks;
