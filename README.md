@@ -83,6 +83,15 @@ Api
 #### map
 
 
+#### mapState
+Like a continous fold that yields the computed state
+
+
+#### mapMealy
+Maps over a mealymachine (A state machine - really useful, google it!) and yields the output of the machine
+Keeps the machine as state.
+
+
 #### join
 
 
