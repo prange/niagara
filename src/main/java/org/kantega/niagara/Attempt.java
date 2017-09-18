@@ -4,11 +4,18 @@ import fj.F;
 import fj.P2;
 import fj.data.Either;
 import fj.data.Option;
+import fj.function.Effect1;
 
 import java.util.function.Supplier;
 
 import static fj.P.p;
 
+/**
+ * Either a exception or a value. Wraps calls to the java api that might fail
+ * with an exception.
+ *
+ * @param <A>
+ */
 public class Attempt<A> {
 
     final Either<Throwable, A> value;
@@ -82,6 +89,14 @@ public class Attempt<A> {
 
     public <X> X fold(F<Throwable, X> g, F<A, X> f) {
         return value.either(g, f);
+    }
+
+    public void doEffect(Effect1<Throwable> onThrowable, Effect1<A> onValue) {
+        Runnable r =
+          fold(f -> () -> onThrowable.f(f), v -> () -> onValue.f(v));
+
+        r.run();
+
     }
 
 }
