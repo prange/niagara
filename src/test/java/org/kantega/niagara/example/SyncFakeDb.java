@@ -14,16 +14,16 @@ public class SyncFakeDb implements Source<String> {
 
     @Override
     public Eventually<Source.Running> open(SourceListener<String> f) {
-        System.out.println("Faking open database");
+        System.out.println("Faking open sync database");
 
-        Stream.range(0, 10000000).foreachDoEffect(n -> {
+        Stream.range(0, 1000000).foreachDoEffect(n -> {
             String randString = n + " " + r.nextLong();
 
             f.handle(randString).await(Duration.ofSeconds(2));
 
         });
 
-        System.out.println("Faking close database");
+        System.out.println("Faking close sync database");
 
         return Eventually.value(new Source.Running(Eventually.value(Source.Result.ack)));
     }

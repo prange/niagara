@@ -3,6 +3,7 @@ package org.kantega.niagara;
 import fj.F;
 import fj.P;
 import fj.P2;
+import fj.data.List;
 import fj.function.Effect1;
 
 import javax.swing.text.html.Option;
@@ -41,6 +42,15 @@ public class Eventually<A> {
         return new Eventually<>(CompletableFuture.completedFuture(value));
     }
 
+    public static <A> Eventually<A> never() {
+        return new Eventually<>(new CompletableFuture<>());
+    }
+
+    public static <A> Eventually<A> async(ExecutorService executorService, Effect1<CompletableFuture<A>> callback) {
+        CompletableFuture<A> f = new CompletableFuture<>();
+        executorService.execute(() -> callback.f(f));
+        return wrap(f);
+    }
 
 
     public <B> Eventually<B> map(F<A, B> f) {
@@ -63,14 +73,14 @@ public class Eventually<A> {
         });
     }
 
-    public Eventually<A> handleFail(F<Throwable,A> f){
+    public Eventually<A> handleFail(F<Throwable, A> f) {
         return wrap(wrapped.exceptionally(f::f));
     }
 
-    public <B> Eventually<B> handle(F<Throwable,B> onFail,F<A,B> onSuccess){
+    public <B> Eventually<B> handle(F<Throwable, B> onFail, F<A, B> onSuccess) {
         return wrap(wrapped.handle((aOrNull, throwableOrNull) -> {
             Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
-            return result.fold(onFail,onSuccess);
+            return result.fold(onFail, onSuccess);
         }));
     }
 
@@ -79,6 +89,16 @@ public class Eventually<A> {
             return Attempt.value(wrapped.toCompletableFuture().get(duration.toMillis(), TimeUnit.MILLISECONDS));
         } catch (Exception e) {
             return Attempt.fail(e);
+        }
+    }
+
+    public static <A> Eventually<List<A>> sequenceList(List<Eventually<A>> as) {
+        if (as.isEmpty())
+            return Eventually.value(List.nil());
+        else if (as.isSingle())
+            return as.head().map(List::single);
+        else {
+            return Eventually.join(as.head(), sequenceList(as.tail())).map(pair -> pair._2().cons(pair._1()));
         }
     }
 

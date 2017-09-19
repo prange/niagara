@@ -8,7 +8,7 @@ import org.kantega.niagara.Task;
 import java.time.Duration;
 import java.util.Arrays;
 
-public class Example1 {
+public class Example1_strings {
 
     public static void main(String[] args) {
 
@@ -17,10 +17,10 @@ public class Example1 {
 
         Task<Unit> streamTask =
           strings1
-          .apply(Example1::println)
+          .apply(Example1_strings::println)
           .flatten(l-> Arrays.asList(l.split("")))
           .onClose(println("Closing flatten").toUnit())
-          .apply(Example1::println)
+          .apply(Example1_strings::println)
           .toTask();
 
         streamTask.execute().await(Duration.ofSeconds(4));

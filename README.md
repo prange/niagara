@@ -114,6 +114,7 @@ Its because we want to be able to preciely define when our stream starts. And it
 exactly when we call _execute()_ on the Task.
 
 
+## Constructing sources - part 1
 
 This was boring. Printing to console is easy, no need for streaming to do that...
 Lets start to build up by createing a fake database source:
@@ -146,7 +147,301 @@ public class SyncFakeDb implements Source<String> {
 ```
 
 As the name implies: its a synchronous implementation, which means that whatever thread
-is used to run the stream task, is used to push the values from the database.
+is used to run the stream task, is used to push the values from the database. But that is
+okay for now.
+
+Lets see how this can be used:
+
+Lets start by counting the entries (The "Hello world" of streaming applications)
+
+```java
+public class Example2 {
+    
+    public static void main(String[] args) {
+
+        Source<Long> dbSource =
+          new SyncFakeDb()
+            .foldLeft(0L, (count, str) -> count + 1);
+
+
+        dbSource.toTask().execute();
+
+    }
+}
+```
+### Introducing state
+
+But wait - something is missing. Example2 is useless, it has no effects! You see, for streams
+that are almost infinite, it makes no sense to return something. Its not like you want to 
+keep the last request that arrives to a webserver. But storing data for later retrieval is a
+common usecase, lets use AtomicLong for a counter.
+
+```java
+public class Example3 {
+
+    static Task<Unit> set(AtomicLong atomicLong, long value) {
+        return Task.runnableTask(() -> atomicLong.set(value));
+    }
+
+    static Task<Long> read(AtomicLong atomicLong) {
+        return Task.call(atomicLong::get);
+    }
+
+    static Task<String> println(String line) {
+        return Task.call(() -> {
+            System.out.println(line);
+            return line;
+        });
+    }
+    
+    public static void main(String[] args) {
+
+        AtomicLong counter = new AtomicLong();
+
+        //Constructing a source that reads from a db,
+        //folds over its values and sets a counter
+        Source<?> dbSource =
+          new SyncFakeDb()
+            .foldLeft(0L, (count, str) -> count + 1)
+            .apply(sum -> set(counter, sum));
+
+        //Creates a task that reads from the counter, and then prints
+        //the result
+        Task<String> print =
+          read(counter)
+            .flatMap(sum -> println("The sum is " + sum));
+
+        //Starts the source and waits for completion
+        dbSource.toTask().execute();
+
+        //Prints out the value of the counter
+        print.execute();
+    }
+}
+```
+
+Why all the `Task`s you ask? Well, reading and writing to the counter is not _referentially transparent_.
+It means that _multiple calls to get() or set() might not yield the same result_.
+The value _get()_ returns changes every time the counter is changed (obvously). But we dont
+like that. We like that all functions return the same value every time we make
+the same call. But we really need state, so we model it as a Task, and make it really clear
+that when you execute this task, the world might change, and the result of the
+task might be different every time. It makes it abolutely clear that we are working
+with something that might change, or performs IO, or takes a long time, or might fail.
+
+Tasks can be connected (_bound_) together to form more complicated tasks. All ran in order,
+and aborted if something fails. But i digress - back to the example.
+
+If you run the example you get
+```
+Faking open database
+Faking close database
+The sum is 1000000
+```
+as expected. 
+
+### Introducing time
+
+Time is something that we often ignore when writing programs. When writing simple
+crud interfaces we dont need to think about time, we just receive a request, and update
+the state in the store, or retrieve the state without much attention to when we retrieve it.
+
+The problem arises when we have values that _change over time_. Changing values are hard.
+A variable has a value depending on _when_ you access it. 
+
+Example3 was single threaded, so time was really not an issue here. But would it be
+if we introduced concurrency?
+
+```java
+public class Example4 {
+
+    static Task<Unit> set(AtomicLong atomicLong, long value) {
+        return Task.runnableTask(() -> atomicLong.set(value));
+    }
+
+    static Task<Long> read(AtomicLong atomicLong) {
+        return Task.call(atomicLong::get);
+    }
+
+    static Task<String> println(String line) {
+        return Task.call(() -> {
+            System.out.println(line);
+            return line;
+        });
+    }
+
+    static final ExecutorService pool =
+      Executors.newFixedThreadPool(2);
+
+    public static void main(String[] args) {
+
+        AtomicLong counter = new AtomicLong();
+
+        //Creates a task that reads from the counter, and then prints
+        //the result
+        Task<String> print =
+          read(counter)
+            .flatMap(sum -> println("The sum is " + sum));
+
+        //Constructing a source that reads from a db,
+        //folds over its values and sets a counter
+        Source<?> dbSource =
+          new AsyncFakeDb(pool)
+            .foldLeft(0L, (count, str) -> count + 1)
+            .apply(sum -> set(counter, sum))
+            .onClose(print.toUnit()); //Execute the effect when the stream is done
+        
+        //Starts the source and waits for completion
+        dbSource.toTask().execute();
+
+        //Execute the effect right away
+        print.execute();
+    }
+}
+```
+
+This prints:
+```
+Faking open database
+The sum is 0
+Faking close database
+The sum is 1000000
+```
+
+First the "database" is opened. That's obvious. But then our state is printed right away, before the
+stream has even started to count. That is because the "database" is async. The _main_ thread reached the
+_print.execute()_ before the pool started to produce values. We used _onClose_ to execute a task
+when the stream ended. Since we cant know exaclty when it ends, we can ask it
+to execute the task when it does. 
+
+If you look at the code in the main method, you can begin to see how we use the
+stream api as a dsl for orchestrating our application. We are starting to abstract away
+one hard part, namely time by encapsuling it "inside" the stream or tasks. But we have
+just begun scratching the surface, lets continue to play around.
+
+We could append the async and the sync streams, making one start when the other stops:
+(The tasks are factored out into the Utils class)
+
+ ```java
+public class Example5 {
+
+    static final ExecutorService pool =
+      Executors.newFixedThreadPool(2);
+
+    public static void main(String[] args) {
+
+        AtomicLong counter = new AtomicLong();
+
+        Task<String> print =
+          read(counter)
+            .flatMap(sum -> println("The sum is " + sum));
+
+        Source<?> dbSource =
+          new AsyncFakeDb(pool)
+            .onClose(println("Async closed").toUnit())
+            .append(SyncFakeDb::new) //Append
+            .foldLeft(0L, (count, str) -> count + 1)
+            .apply(sum -> set(counter, sum))
+            .onClose(print.toUnit());
+
+        dbSource.toTask().execute();
+    }
+}
+```
+
+which prints
+```
+Faking open async database
+Faking close async database
+Async closed
+Faking open sync database
+Faking close sync database
+The sum is 2000000
+```
+Sources can be _map_ped: 
+
+```java
+    Source<String> dbAsString =
+          new AsyncFakeDb(pool).map(l->String.valueOf(l));
+```
+Which means its content can be changed value for value.
+
+Sources can be _join_ed:
+```java
+    Source<Long> dbs =
+          new AsyncFakeDb(pool).join(new AsyncFakeDb(pool))
+```
+
+_Or_ed:
+
+```java
+    Source<Either<Long,String>> counterOrString =
+          new AsyncFakeDb(pool).or(strings1)
+```
+
+You can even make stream of streams using _bind_ (aka. _flatMap_)
+
+```java
+    Source<String> letters =
+          new AsyncFakeDb(pool).bind(l->Streams.values(String.valueOf(l).split("")))
+```
+
+
+## Inputting
+Up to now we have constructed streams using the Streams convenience methods or
+pulling values from a source (the database) and pushing them to the handler.
+This pattern doesnt work for cases where messages a pushed to us, for example 
+when serving a jax-rs endpoint.
+
+### Topics
+That is what we have topics for. Topics are, well, topics. As in pub/sub topics.
+You post something to a topic, and subscribers that subscribe to that topic
+get what you post. Her those subscriptions are sources. When you publish a message to 
+the a topic, all connected sources will be updated at once, and as concurrently as
+your topology allows. The Task you receive when you publish will push the message when executed.
+The task is resolved when all listeners have received the message. A topic never closes
+and does not participate in resourcemanagement. (You will learn more about them later)
+
+```java
+public class Example7_topic {
+
+    static final ExecutorService pool =
+      Executors.newFixedThreadPool(1);
+
+    public static void main(String[] args) {
+
+        AtomicLong counter =
+          new AtomicLong();
+
+        AsyncTopic<String> topicA =
+          new AsyncTopic<>(pool);
+
+        Task<String> print =
+          read(counter)
+            .flatMap(sum -> println("The sum is " + sum));
+
+
+        Source<String> dbSource =
+          topicA
+            .subscribe()
+            .apply(Utils::println)
+            .onClose(print.toUnit());
+
+        dbSource.toTask().execute();
+
+        topicA.publish("First").execute();
+        topicA.publish("Second").execute();
+        topicA.publish("Third").execute().await(Duration.ofSeconds(10));
+    }
+}
+```
+
+### Queues
+Queueus are the same as Topics, except messages you publish will wait for 
+a consumer if none are opened, and will always be async. The queue will make 
+your app handle peaks where consumers have trouble in keeping up, and also
+as a safetymeasure. The queue is bounded, and when the queue is full, messages are
+dropped (oldest messages get dropped first).
 
 Api
 

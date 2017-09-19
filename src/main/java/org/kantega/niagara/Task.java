@@ -83,7 +83,7 @@ public interface Task<A> {
      * @param task The callable to wrap
      * @return Unit
      */
-    static Task<Unit> callVoid(Runnable task) {
+    static Task<Unit> runnableTask(Runnable task) {
         return () -> {
             task.run();
             return Eventually.value(Unit.unit());
