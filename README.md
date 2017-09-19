@@ -358,7 +358,7 @@ Faking open sync database
 Faking close sync database
 The sum is 2000000
 ```
-Sources can be _map_ped: 
+Sources can be _map_ ped: 
 
 ```java
     Source<String> dbAsString =
@@ -366,13 +366,13 @@ Sources can be _map_ped:
 ```
 Which means its content can be changed value for value.
 
-Sources can be _join_ed:
+Sources can be _join_ ed:
 ```java
     Source<Long> dbs =
           new AsyncFakeDb(pool).join(new AsyncFakeDb(pool))
 ```
 
-_Or_ed:
+_Or_ ed:
 
 ```java
     Source<Either<Long,String>> counterOrString =
@@ -387,7 +387,7 @@ You can even make stream of streams using _bind_ (aka. _flatMap_)
 ```
 
 
-## Inputting
+## Constructing sources - part 2
 Up to now we have constructed streams using the Streams convenience methods or
 pulling values from a source (the database) and pushing them to the handler.
 This pattern doesnt work for cases where messages a pushed to us, for example 
