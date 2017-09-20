@@ -140,12 +140,12 @@ public interface Source<A> {
     }
 
     /**
-     * Runs the task when the source closes
+     * Runs the task when the source closes, ignoring the output from the task.
      *
      * @param cleanup
      * @return
      */
-    default Source<A> onClose(Task<Unit> cleanup) {
+    default Source<A> onClose(Task<?> cleanup) {
         return handler ->
           open(handler)
             .map(running -> running.onStop(cleanup));
@@ -214,7 +214,7 @@ public interface Source<A> {
             this.stopped = Eventually.wrap(stopped.wrapped.applyToEither(stopper,l->l));
         }
 
-        public Running onStop(Task<Unit> task) {
+        public Running onStop(Task<?> task) {
             return new Running(stopped.bind(r -> task.execute().map(u -> r)));
         }
 

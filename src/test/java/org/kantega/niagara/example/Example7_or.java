@@ -34,7 +34,7 @@ public class Example7_or {
           new AsyncFakeDb(pool).or(strings1)
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print.toUnit());
+            .onClose(print);
 
         dbSource.toTask().execute();
     }

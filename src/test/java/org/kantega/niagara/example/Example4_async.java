@@ -44,7 +44,7 @@ public class Example4_async {
           new AsyncFakeDb(pool)
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print.toUnit()); //Execute the effect when the stream is done
+            .onClose(print); //Execute the effect when the stream is done
 
         //Starts the source and waits for completion
         dbSource.toTask().execute();

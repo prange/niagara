@@ -29,7 +29,7 @@ public class Example6_join {
           new AsyncFakeDb(pool).join(new AsyncFakeDb(pool))
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print.toUnit());
+            .onClose(print);
 
         dbSource.toTask().execute();
     }
