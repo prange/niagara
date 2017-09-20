@@ -289,7 +289,7 @@ public class Example4 {
           new AsyncFakeDb(pool)
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print.toUnit()); //Execute the effect when the stream is done
+            .onClose(print); //Execute the effect when the stream is done
         
         //Starts the source and waits for completion
         dbSource.toTask().execute();
@@ -342,7 +342,7 @@ public class Example5 {
             .append(SyncFakeDb::new) //Append
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print.toUnit());
+            .onClose(print);
 
         dbSource.toTask().execute();
     }
@@ -425,7 +425,7 @@ public class Example7_topic {
           topicA
             .subscribe()
             .apply(Utils::println)
-            .onClose(print.toUnit());
+            .onClose(print);
 
         dbSource.toTask().execute();
 
