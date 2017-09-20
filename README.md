@@ -111,7 +111,7 @@ Then we want to print out the letters.
 
 And finally we create a Task that can run the stream. Why all this indirection you think?
 Its because we want to be able to preciely define when our stream starts. And it starts
-exactly when we call _execute()_ on the Task <sup>*</sup>).
+exactly when we call _execute()_ on the Task <sup>*</sup>.
 
 *) Not a guarantee. The source is actually signalled to start exactly when
 you call start, but it might actually start at some later time, in a thread far far away.
