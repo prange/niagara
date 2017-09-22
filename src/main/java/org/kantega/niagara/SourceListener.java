@@ -1,13 +1,13 @@
 package org.kantega.niagara;
 
-import fj.F;
+import fj.function.Effect1;
 
-public interface SourceListener<A> extends F<A, Eventually<Source.Result>> {
+public interface SourceListener<A> extends Effect1<A> {
 
-    Eventually<Source.Result> handle(A a);
+    void handle(A a);
 
-    default Eventually<Source.Result> f(A a) {
-        return handle(a);
+    default void f(A a) {
+
     }
 
 }

@@ -21,7 +21,7 @@ public class AsyncFakeDb implements Source<String> {
     }
 
     @Override
-    public Eventually<Running> open(SourceListener<String> f) {
+    public Eventually<Running> open(SourceListener<String> listener) {
         return Eventually.async(pool, startingCallback -> {
             System.out.println("Faking open async database");
 
@@ -32,7 +32,7 @@ public class AsyncFakeDb implements Source<String> {
                   Stream.range(0, 1000000).foreachDoEffect(n -> {
                       String randString = n + " " + r.nextLong();
 
-                      lastResult.set(f.handle(randString).await(Duration.ofSeconds(2)).fold(t -> Result.closed, r -> r));
+                      lastResult.set(listener.handle(randString).await(Duration.ofSeconds(2)).fold(t -> Result.closed, r -> r));
 
                   });
 

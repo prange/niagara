@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.kantega.niagara.Task.*;
 
-public class AsyncInputQueue<A> {
+public class AsyncDroppingInputQueue<A> {
 
     private final long       bounds;
     private final AtomicLong size;
@@ -24,7 +24,7 @@ public class AsyncInputQueue<A> {
     private final ConcurrentLinkedQueue<A>                mbox      = new ConcurrentLinkedQueue<>();
     private final CopyOnWriteArrayList<SourceListener<A>> listeners = new CopyOnWriteArrayList<>();
 
-    public AsyncInputQueue(int bounds, Executor executor) {
+    public AsyncDroppingInputQueue(int bounds, Executor executor) {
         this.size = new AtomicLong();
         this.executor = executor;
         this.bounds = bounds;
@@ -50,6 +50,7 @@ public class AsyncInputQueue<A> {
                 long count = 0;
                 while (!Thread.currentThread().isInterrupted() && !mbox.isEmpty() && !listeners.isEmpty() && count++ < max) {
                     A a = mbox.poll();
+                    size.decrementAndGet();
                     listeners.forEach(listener -> listener.handle(a));
                 }
                 working.set(false);
@@ -62,6 +63,7 @@ public class AsyncInputQueue<A> {
     public Source<A> subscribe() {
         return handler -> call(() -> {
             listeners.add(handler);
+            work();
             return
               new Source.Running(Eventually.never()).onStop(runnableTask(() -> listeners.remove(handler)));
         }).using(executor).execute();

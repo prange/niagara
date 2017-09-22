@@ -38,6 +38,12 @@ public class Eventually<A> {
         return new Eventually<>(wrapped);
     }
 
+    public static <A> Eventually<A> fail(Exception e) {
+        CompletableFuture<A> c = new CompletableFuture<>();
+        c.completeExceptionally(e);
+        return new Eventually<>(c);
+    }
+
     public static <A> Eventually<A> value(A value) {
         return new Eventually<>(CompletableFuture.completedFuture(value));
     }
@@ -63,6 +69,10 @@ public class Eventually<A> {
 
     public static <A, B> Eventually<P2<A, B>> join(Eventually<A> ea, Eventually<B> eb) {
         return wrap(ea.wrapped.thenCombine(eb.wrapped, P::p));
+    }
+
+    public static <A> Eventually<A> firstOf(Eventually<A> ea, Eventually<A> eb) {
+        return wrap(ea.wrapped.applyToEither(eb.wrapped,a->a));
     }
 
 

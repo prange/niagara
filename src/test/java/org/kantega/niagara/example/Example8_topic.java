@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.kantega.niagara.example.Utils.println;
 import static org.kantega.niagara.example.Utils.read;
 
-public class Example7_topic {
+public class Example8_topic {
 
     static final ExecutorService pool =
       Executors.newFixedThreadPool(1);
@@ -30,13 +30,13 @@ public class Example7_topic {
             .flatMap(sum -> println("The sum is " + sum));
 
 
-        Source<String> dbSource =
+        Source<String> topicASource =
           topicA
             .subscribe()
             .apply(Utils::println)
             .onClose(print.toUnit());
 
-        dbSource.toTask().execute();
+        topicASource.toTask().execute();
 
         topicA.publish("First").execute();
         topicA.publish("Second").execute();

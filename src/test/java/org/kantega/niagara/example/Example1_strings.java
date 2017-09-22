@@ -15,7 +15,7 @@ public class Example1_strings {
         Source<String> strings1 =
           Sources.values("one", "two", "three");
 
-        Task<Unit> streamTask =
+        Task<?> streamTask =
           strings1
           .apply(Example1_strings::println)
           .flatten(l-> Arrays.asList(l.split("")))

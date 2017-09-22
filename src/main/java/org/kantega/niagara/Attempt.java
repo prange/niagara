@@ -50,6 +50,13 @@ public class Attempt<A> {
         }
     }
 
+    public static <A> Effect1<Attempt<A>> attemptHandler(Effect1<Throwable> onThrowable,Effect1<A> onA){
+        return attempt -> {
+            attempt.toOption().foreachDoEffect(onA);
+            attempt.failure().foreachDoEffect(onThrowable);
+        };
+    }
+
     public <B> Attempt<B> map(F<A, B> f) {
         return new Attempt<>(value.right().map(f));
     }

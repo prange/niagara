@@ -30,7 +30,7 @@ public class Example5_append {
             .append(SyncFakeDb::new) //Append
             .foldLeft(0L, (count, str) -> count + 1)
             .apply(sum -> set(counter, sum))
-            .onClose(print);
+            .onClose(print );
 
         dbSource.toTask().execute();
     }

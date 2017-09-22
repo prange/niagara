@@ -4,10 +4,17 @@ import java.util.Arrays;
 
 public class Sources {
 
+
+    public static <A> Source<A> nil() {
+        return handler -> {
+            return Eventually.value(new Source.ClosedRunning());
+        };
+    }
+
     public static <A> Source<A> value(A a) {
         return handler -> {
             Eventually<Source.Result> r = handler.f(a);
-            return Eventually.value(new Source.Running(r));
+            return Eventually.value(Source.alreadyClosedRunning);
         };
     }
 

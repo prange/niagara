@@ -6,6 +6,8 @@ import fj.control.parallel.Strategy;
 import fj.data.Either;
 import fj.data.Option;
 import fj.function.Effect1;
+import fj.function.Try0;
+import fj.function.TryEffect0;
 
 import java.time.Duration;
 import java.util.concurrent.*;
@@ -84,9 +86,30 @@ public interface Task<A> {
      * @return Unit
      */
     static Task<Unit> runnableTask(Runnable task) {
-        return () -> {
+        return async(callback -> {
             task.run();
-            return Eventually.value(Unit.unit());
+            callback.f(Attempt.value(Unit.unit()));
+        });
+    }
+
+    static <A> Task<A> tryTask(Try0<A, ? extends Exception> task) {
+        return () -> {
+            try {
+                return Eventually.value(task.f());
+            } catch (Exception e) {
+                return Eventually.fail(e);
+            }
+        };
+    }
+
+    static Task<Unit> tryRunnableTask(TryEffect0<? extends Exception> task) {
+        return () -> {
+            try {
+                task.f();
+                return Eventually.value(Unit.unit());
+            } catch (Exception e) {
+                return Eventually.fail(e);
+            }
         };
     }
 

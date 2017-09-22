@@ -1,11 +1,12 @@
 package org.kantega.niagara;
 
-import fj.*;
+import fj.F;
+import fj.F2;
+import fj.P;
+import fj.P2;
 import fj.data.Either;
-import fj.data.IterableW;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -13,15 +14,20 @@ public interface Source<A> {
 
     enum Result {ack, closed}
 
-    Eventually<Running> open(SourceListener<A> f);
+    Eventually<Closed> open(Eventually<Stop> stopSignal, SourceListener<A> f);
 
     /**
-     * Creates a task that opens the source when executed. The task resolves when the source closes.
+     * Creates a task that opens the source when executed. The task resolves when the source is running.
      *
      * @return the task that opens the stream
      */
-    default Task<Unit> toTask() {
-        return () -> open(a -> Eventually.value(Result.ack)).bind(running -> running.stopped).map(r -> Unit.unit());
+    default Task<Closed> toTask() {
+        CompletableFuture<Stop> closeSignal = new CompletableFuture<>();
+
+        return () -> open(Eventually.wrap(closeSignal), a -> Eventually.value(Result.ack)).map(closedAttempt -> {
+            closeSignal.complete(stop);
+            return closedAttempt;
+        });
     }
 
     /**
@@ -32,8 +38,8 @@ public interface Source<A> {
      * @return the new transfored stream
      */
     default <B> Source<B> map(F<A, B> f) {
-        return handler ->
-          open(a -> handler.f(f.f(a)));
+        return (closer, listener) ->
+          open(closer, a -> listener.f(f.f(a)));
     }
 
     /**
@@ -48,10 +54,10 @@ public interface Source<A> {
     default <S, B> Source<P2<S, B>> zipWithState(S initState, F2<S, A, P2<S, B>> f) {
         AtomicReference<P2<S, B>> s = new AtomicReference<>(P.p(initState, null));
 
-        return handler ->
-          open(a -> {
+        return (closer, handler) ->
+          open(closer, a -> {
               P2<S, B> updated = s.updateAndGet(p2 -> f.f(p2._1(), a));
-              return handler.f(updated);
+              handler.f(updated);
           });
     }
 
@@ -93,13 +99,8 @@ public interface Source<A> {
      */
     //TODO: Blows up on stack
     default <B> Source<B> flatten(F<A, ? extends Iterable<B>> f) {
-        return handler ->
-          open(a ->
-            IterableW
-              .wrap(f.f(a))
-              .foldLeft(
-                sum -> b -> sum.bind(result -> result == Result.ack ? handler.handle(b) : Eventually.value(result)),
-                Eventually.value(Result.ack)));
+        return (closer, handler) ->
+          open(closer, a -> f.f(a).forEach(handler::handle));
     }
 
     /**
@@ -110,12 +111,10 @@ public interface Source<A> {
      * @return a new source
      */
     default <B> Source<B> bind(F<A, Source<B>> f) {
-        return handler ->
-          open(a -> {
+        return (closer, handler) ->
+          open(closer, a -> {
               Source<B> b = f.f(a);
-              return
-                b.open(handler)
-                  .bind(bRunning -> bRunning.stopped);
+              b.open(closer, handler);
           });
     }
 
@@ -127,15 +126,10 @@ public interface Source<A> {
      * @return a new Source
      */
     default Source<A> append(Supplier<Source<A>> next) {
-        return handler ->
-          open(handler)
-            .bind(running ->
-              running
-                .stopped
-                .bind(u ->
-                  next
-                    .get()
-                    .open(handler)));
+        return (closer, handler) ->
+          open(closer, handler)
+            .bind(closed ->
+              next.get().open(closer, handler));
 
     }
 
@@ -146,9 +140,9 @@ public interface Source<A> {
      * @return
      */
     default Source<A> onClose(Task<?> cleanup) {
-        return handler ->
-          open(handler)
-            .map(running -> running.onStop(cleanup));
+        return (closer, handler) ->
+          open(closer, handler)
+            .bind(closed -> cleanup.execute().map(u -> closed));
 
     }
 
@@ -159,11 +153,10 @@ public interface Source<A> {
      * @return
      */
     default Source<A> join(Source<A> other) {
-        return handler -> {
-            Eventually<Running> firstRunning  = open(handler);
-            Eventually<Running> secondRunning = other.open(handler);
-            return Eventually.join(firstRunning, secondRunning).map(pair -> new Running(Eventually.join(pair._1().stopped, pair._2().stopped).map(resultPair ->
-              resultPair._1().equals(Result.closed) && resultPair._2().equals(Result.closed) ? Result.closed : Result.ack)));
+        return (closer, handler) -> {
+            Eventually<Closed> firstRunning  = open(closer, handler);
+            Eventually<Closed> secondRunning = other.open(closer, handler);
+            return Eventually.join(firstRunning, secondRunning).map(pair -> pair._1());
         };
     }
 
@@ -193,36 +186,24 @@ public interface Source<A> {
      * @return
      */
     default <B> Source<B> apply(F<A, Task<B>> task) {
-        return handler ->
-          open(a ->
-            task.f(a).execute().bind(handler::handle)
+        return (closer, handler) ->
+          open(closer, a ->
+            task.f(a).execute().onComplete(
+              bAttempt -> bAttempt.doEffect(
+                t -> t.printStackTrace(),
+                b -> handler.handle(b)
+              ))
           );
     }
 
-    /**
-     * Represents the running state of the source, and wraps an eventual result that
-     * is resolved when the source is closed. The result is usually the last
-     * reply the source had from its handler when it closed. (But this is not enforces through
-     * the typesystem, so beware of programmer errors here)
-     */
-    class Running {
 
-        final Eventually<Result> stopped;
-        final CompletableFuture<Result> stopper = new CompletableFuture<>();
-
-        public Running(Eventually<Result> stopped) {
-            this.stopped = Eventually.wrap(stopped.wrapped.applyToEither(stopper,l->l));
-        }
-
-        public Running onStop(Task<?> task) {
-            return new Running(stopped.bind(r -> task.execute().map(u -> r)));
-        }
-
-        public Eventually<Result> stop() {
-            stopper.complete(Result.closed);
-            return stopped;
-        }
+    interface Closed {
     }
 
+    Stop stop = new Stop() {
+    };
+
+    interface Stop {
+    }
 
 }
