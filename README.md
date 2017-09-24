@@ -440,45 +440,65 @@ public class Example7_topic {
 
 ### Queues
 Queueus are the same as Topics, except messages you publish will wait for 
-a consumer if none are opened, and will always be async. The queue will make 
+a consumer, and will always be async. The queue will make 
 your app handle peaks where consumers have trouble in keeping up, and also
 as a safetymeasure. The queue is bounded, and when the queue is full, messages are
-dropped (oldest messages get dropped first).
+dropped (oldest messages get dropped first). 
 
-Api
+A queue never closes, and you can add to a queue even if no source is opened from the queue.
 
-
-#### onClose
-
-
-#### append
+When you open a source from the queue, you get the messages that are currently in the queue.
 
 
-#### bind (flatMap)
+```java
+public class Example9_queue {
+
+    static final ExecutorService pool =
+      Executors.newFixedThreadPool(1);
+
+    public static void main(String[] args) throws InterruptedException {
 
 
-#### map
+        AtomicLong counter =
+          new AtomicLong();
 
+        AsyncDroppingInputQueue<String> queue =
+          new AsyncDroppingInputQueue<>(10, pool);
 
-#### mapState
-Like a continous fold that yields the computed state
+        long numberOfElements = 100;
 
+        F<String, Task<Unit>> increment =
+          u -> Task.runnableTask(counter::incrementAndGet);
 
-#### mapMealy
-Maps over a mealymachine (A state machine - really useful, google it!) and yields the output of the machine
-Keeps the machine as state.
+        Task<Unit> print =
+          read(counter)
+            .flatMap(count ->
+              println("The sum is " + count)).toUnit();
 
+        Source<?> qSource =
+          queue
+            .subscribe()
+            .apply(increment)
+            .zipWithIndex()
+            .asLongAs(tuple((index, value) -> index < numberOfElements))
+            .onClose(print);
 
-#### join
+        //Open the source, so we get the values in the queue
+        qSource.toTask().execute();
 
+        Stream.range(0, numberOfElements).foreachDoEffect(n -> {
+            queue.offer("Message " + n).execute().await(Duration.ofSeconds(1));
+        });
 
-#### apply
+    }
+}
+```
 
-
-#### flatten
-
-
-#### mapState
-
-
-#### run
+The keen eye will spot that the above program never will emit anything to the console,
+because the stream probably will never close. The _asLongAs_ method will tell the
+stream to continue as long as the index is lower than the max number of elements
+that are produced. When the max is hit, the stream should close. But the max is never hit,
+because messages are dropped from the queue, because the source cannot keep up with the
+pace we are offering messages to the queue. We could make a queue that blocks the offering
+thread while we are waiting for the source to catch up, but that would be deadlock prone. And in
+the end, blocking should rarely be neccesary. Open a pull request or a ticket if you find a good usecase.

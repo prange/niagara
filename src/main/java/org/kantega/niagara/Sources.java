@@ -1,25 +1,24 @@
 package org.kantega.niagara;
 
+import java.time.Duration;
 import java.util.Arrays;
 
 public class Sources {
 
+    public static final Duration defaultTimeout = Duration.ofSeconds(10);
+
 
     public static <A> Source<A> nil() {
-        return handler -> {
-            return Eventually.value(new Source.ClosedRunning());
-        };
+        return (closer, handler) -> Eventually.value(Source.ended());
     }
 
     public static <A> Source<A> value(A a) {
-        return handler -> {
-            Eventually<Source.Result> r = handler.f(a);
-            return Eventually.value(Source.alreadyClosedRunning);
-        };
+        return (closer, handler) ->
+          handler.handle(a).execute().map(u -> Source.ended());
     }
 
     @SafeVarargs
-    public static <A> Source<A> values(A ... as){
+    public static <A> Source<A> values(A... as) {
         return iterableBlock(Arrays.asList(as));
     }
 

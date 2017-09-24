@@ -4,6 +4,7 @@ import fj.*;
 import fj.control.parallel.Actor;
 import fj.control.parallel.Strategy;
 import fj.data.Either;
+import fj.data.List;
 import fj.data.Option;
 import fj.function.Effect1;
 import fj.function.Try0;
@@ -33,6 +34,9 @@ public interface Task<A> {
     Strategy<Unit> defaultStrategy =
       Strategy.seqStrategy();
 
+
+    Task<Unit> noOp =
+      Task.value(Unit.unit());
 
     /**
      * Creates an Async that is resolved by a callback.
@@ -128,6 +132,13 @@ public interface Task<A> {
         return () -> Eventually.join(one.execute(), other.execute());
     }
 
+    static <A> Task<List<A>> sequence(List<Task<A>> tasks) {
+        if(tasks.isEmpty())
+            return Task.value(List.nil());
+        else
+            return tasks.head().flatMap(a->sequence(tasks.tail()).map(list -> list.cons(a)));
+    }
+
 
     /**
      * Runs the async after the given delay
@@ -203,6 +214,19 @@ public interface Task<A> {
      */
     default Attempt<A> executeAndAwait(Duration timeout) {
         return execute().await(timeout);
+    }
+
+    /**
+     * Executes the task, waits for the result, and folds over it.
+     *
+     * @param timeout   How long do we want to wait?
+     * @param onFail    if the task failed, handle it here
+     * @param onSuccess if the task succeeded, handle it here
+     * @param <T>       the type of the result
+     * @return the rusult.
+     */
+    default <T> T executeAndFoldResult(Duration timeout, F<Throwable, T> onFail, F<A, T> onSuccess) {
+        return executeAndAwait(timeout).fold(onFail, onSuccess);
     }
 
 

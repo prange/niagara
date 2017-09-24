@@ -2,7 +2,7 @@ package org.kantega.niagara.example;
 
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Task;
-import org.kantega.niagara.exchange.AsyncTopic;
+import org.kantega.niagara.exchange.Topic;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -14,16 +14,13 @@ import static org.kantega.niagara.example.Utils.read;
 
 public class Example8_topic {
 
-    static final ExecutorService pool =
-      Executors.newFixedThreadPool(1);
-
     public static void main(String[] args) {
 
         AtomicLong counter =
           new AtomicLong();
 
-        AsyncTopic<String> topicA =
-          new AsyncTopic<>(pool);
+        Topic<String> topicA =
+          new Topic<>();
 
         Task<String> print =
           read(counter)

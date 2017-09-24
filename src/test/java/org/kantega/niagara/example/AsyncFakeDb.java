@@ -21,26 +21,21 @@ public class AsyncFakeDb implements Source<String> {
     }
 
     @Override
-    public Eventually<Running> open(SourceListener<String> listener) {
-        return Eventually.async(pool, startingCallback -> {
+    public Eventually<Closed> open(Eventually<Stop> stop, SourceListener<String> listener) {
+
+        return Eventually.async(pool, callback -> {
             System.out.println("Faking open async database");
 
-            Eventually<Result> eventuallyClosing =
-              Eventually.async(pool, callback -> {
-                  AtomicReference<Result> lastResult = new AtomicReference<>(Result.ack);
+            Stream.range(0, 1000000).foreachDoEffect(n -> {
+                String randString = n + " " + r.nextLong();
 
-                  Stream.range(0, 1000000).foreachDoEffect(n -> {
-                      String randString = n + " " + r.nextLong();
+                listener.handle(randString);
 
-                      lastResult.set(listener.handle(randString).await(Duration.ofSeconds(2)).fold(t -> Result.closed, r -> r));
+            });
 
-                  });
+            System.out.println("Faking close async database");
 
-                  System.out.println("Faking close async database");
-                  callback.complete(lastResult.get());
-              });
-
-            startingCallback.complete(new Running(eventuallyClosing));
+            callback.complete(Source.stopped());
         });
 
 

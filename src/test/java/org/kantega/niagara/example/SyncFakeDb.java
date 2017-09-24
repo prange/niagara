@@ -13,18 +13,18 @@ public class SyncFakeDb implements Source<String> {
     private Random r = new Random();
 
     @Override
-    public Eventually<Source.Running> open(SourceListener<String> f) {
+    public Eventually<Closed> open(Eventually<Stop> stop, SourceListener<String> f) {
         System.out.println("Faking open sync database");
 
         Stream.range(0, 1000000).foreachDoEffect(n -> {
             String randString = n + " " + r.nextLong();
 
-            f.handle(randString).await(Duration.ofSeconds(2));
+            f.handle(randString);
 
         });
 
         System.out.println("Faking close sync database");
 
-        return Eventually.value(new Source.Running(Eventually.value(Source.Result.ack)));
+        return Eventually.value(Source.ended());
     }
 }

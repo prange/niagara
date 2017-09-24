@@ -1,13 +1,9 @@
 package org.kantega.niagara;
 
-import fj.function.Effect1;
+import fj.Unit;
 
-public interface SourceListener<A> extends Effect1<A> {
+public interface SourceListener<A>  {
 
-    void handle(A a);
-
-    default void f(A a) {
-
-    }
+    Task<Unit> handle(A a);
 
 }

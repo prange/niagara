@@ -1,10 +1,11 @@
 package org.kantega.niagara;
 
-import fj.F;
-import fj.F2;
-import fj.P;
-import fj.P2;
+import fj.*;
 import fj.data.Either;
+import fj.data.List;
+import fj.data.Option;
+import fj.data.Stream;
+import fj.function.Booleans;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,9 +13,11 @@ import java.util.function.Supplier;
 
 public interface Source<A> {
 
-    enum Result {ack, closed}
-
     Eventually<Closed> open(Eventually<Stop> stopSignal, SourceListener<A> f);
+
+    default <B> Source<B> wrap(F<SourceListener<B>, SourceListener<A>> f) {
+        return (closer, handler) -> open(closer, f.f(handler));
+    }
 
     /**
      * Creates a task that opens the source when executed. The task resolves when the source is running.
@@ -24,10 +27,15 @@ public interface Source<A> {
     default Task<Closed> toTask() {
         CompletableFuture<Stop> closeSignal = new CompletableFuture<>();
 
-        return () -> open(Eventually.wrap(closeSignal), a -> Eventually.value(Result.ack)).map(closedAttempt -> {
-            closeSignal.complete(stop);
-            return closedAttempt;
-        });
+        return () ->
+          open(
+            Eventually.wrap(closeSignal),
+            a -> Task.noOp
+          )
+            .map(closedAttempt -> {
+                closeSignal.complete(stop);
+                return closedAttempt;
+            });
     }
 
     /**
@@ -38,8 +46,7 @@ public interface Source<A> {
      * @return the new transfored stream
      */
     default <B> Source<B> map(F<A, B> f) {
-        return (closer, listener) ->
-          open(closer, a -> listener.f(f.f(a)));
+        return wrap(listener -> (a -> listener.handle(f.f(a))));
     }
 
     /**
@@ -54,11 +61,16 @@ public interface Source<A> {
     default <S, B> Source<P2<S, B>> zipWithState(S initState, F2<S, A, P2<S, B>> f) {
         AtomicReference<P2<S, B>> s = new AtomicReference<>(P.p(initState, null));
 
-        return (closer, handler) ->
-          open(closer, a -> {
+        return
+          wrap(handler -> a -> {
               P2<S, B> updated = s.updateAndGet(p2 -> f.f(p2._1(), a));
-              handler.f(updated);
+              return handler.handle(updated);
           });
+    }
+
+    default Source<P2<Long, A>> zipWithIndex() {
+        return
+          zipWithState(0L, (sum, val) -> P.p(sum + 1, val));
     }
 
     /**
@@ -97,10 +109,9 @@ public interface Source<A> {
      * @param <B> the type of the values in the iterable
      * @return a new flattened source.
      */
-    //TODO: Blows up on stack
-    default <B> Source<B> flatten(F<A, ? extends Iterable<B>> f) {
-        return (closer, handler) ->
-          open(closer, a -> f.f(a).forEach(handler::handle));
+    default <B> Source<B> flatten(F<A, Iterable<B>> f) {
+        return
+          wrap(handler -> a -> Task.sequence(List.iterableList(f.f(a)).map(handler::handle)).toUnit());
     }
 
     /**
@@ -114,7 +125,7 @@ public interface Source<A> {
         return (closer, handler) ->
           open(closer, a -> {
               Source<B> b = f.f(a);
-              b.open(closer, handler);
+              return () -> b.open(closer, handler).map(u -> Unit.unit());
           });
     }
 
@@ -148,6 +159,7 @@ public interface Source<A> {
 
     /**
      * Joins two sources together.
+     * The source ends when both of the joined sources have ended
      *
      * @param other
      * @return
@@ -156,7 +168,7 @@ public interface Source<A> {
         return (closer, handler) -> {
             Eventually<Closed> firstRunning  = open(closer, handler);
             Eventually<Closed> secondRunning = other.open(closer, handler);
-            return Eventually.join(firstRunning, secondRunning).map(pair -> pair._1());
+            return Eventually.join(firstRunning, secondRunning).map(P2::_1);
         };
     }
 
@@ -169,7 +181,7 @@ public interface Source<A> {
      * @param <B>
      * @return
      */
-    default <B> Source<B> update(F<Source<A>, Source<B>> f) {
+    default <B> Source<B> transform(F<Source<A>, Source<B>> f) {
         return f.f(this);
     }
 
@@ -186,18 +198,78 @@ public interface Source<A> {
      * @return
      */
     default <B> Source<B> apply(F<A, Task<B>> task) {
-        return (closer, handler) ->
-          open(closer, a ->
-            task.f(a).execute().onComplete(
-              bAttempt -> bAttempt.doEffect(
-                t -> t.printStackTrace(),
-                b -> handler.handle(b)
-              ))
+        return wrap(handler -> a ->
+          task.f(a).flatMap(handler::handle)
+        );
+    }
+
+    default Source<A> keep(F<A, Boolean> pred) {
+        return
+          wrap(listener -> a ->
+            pred.f(a) ?
+              listener.handle(a) :
+              Task.noOp
           );
     }
 
+    default Source<A> take(long max) {
+        return zipWithIndex().until(pair -> pair._1() > max).map(P2::_2);
+    }
 
-    interface Closed {
+    default Source<A> drop(long max) {
+        return zipWithIndex().until(pair -> pair._1() > max).map(P2::_2);
+    }
+
+
+    default Source<A> asLongAs(F<A, Boolean> pred) {
+        return until(Booleans.not(pred));
+    }
+
+    default Source<A> until(F<A, Boolean> predicate) {
+        CompletableFuture<Closed> closed = new CompletableFuture<>();
+
+        return (closer, handler) -> {
+            Eventually<Closed> innerStopped =
+              open(closer, a ->
+                predicate.f(a) ?
+                  Task.runnableTask(() -> closed.complete(Source.ended())) :
+                  handler.handle(a));
+
+            return Eventually.firstOf(innerStopped, Eventually.wrap(closed));
+        };
+    }
+
+    static Closed stopped() {
+        return closed("stopped");
+    }
+
+    static Closed ended() {
+        return closed("Ended");
+    }
+
+    static Closed closed(String reason) {
+        return new Closed(reason, Option.none());
+    }
+
+    static Closed closed(String reason, Throwable e) {
+        return new Closed(reason, Option.some(e));
+    }
+
+    class Closed {
+        final String            reason;
+        final Option<Throwable> t;
+
+        public Closed(String reason, Option<Throwable> t) {
+            this.reason = reason;
+            this.t = t;
+        }
+
+        @Override
+        public String toString() {
+            return "Closed{" + "reason='" + reason + '\'' +
+              ", t=" + t +
+              '}';
+        }
     }
 
     Stop stop = new Stop() {
