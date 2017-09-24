@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>no.kantega</groupId>
+    <groupId>no.kantega.niagara</groupId>
     <artifactId>niagara-core</artifactId>
     <version>1.0-SNAPSHOT</version>
     <scm>
@@ -15,7 +15,7 @@
         <dependency>
             <groupId>org.functionaljava</groupId>
             <artifactId>functionaljava</artifactId>
-            <version>4.6</version>
+            <version>4.7</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -36,11 +36,6 @@
             <version>1.7.5</version>
             <optional>true</optional>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.1</version>
         </dependency>
     </dependencies>
     <distributionManagement>
