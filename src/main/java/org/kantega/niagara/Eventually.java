@@ -38,6 +38,16 @@ public class Eventually<A> {
         return new Eventually<>(wrapped);
     }
 
+    public static <A> Eventually<A> callback(Effect1<Effect1<A>> asynctask) {
+        CompletableFuture<A> fut = new CompletableFuture<>();
+        try {
+            asynctask.f(a -> fut.complete(a));
+        } catch (Exception e) {
+            fut.completeExceptionally(e);
+        }
+        return Eventually.wrap(fut);
+    }
+
     public static <A> Eventually<A> fail(Exception e) {
         CompletableFuture<A> c = new CompletableFuture<>();
         c.completeExceptionally(e);
@@ -67,12 +77,20 @@ public class Eventually<A> {
         return wrap(wrapped.thenCompose(a -> f.f(a).wrapped));
     }
 
+    public Eventually<A> or(Eventually<A> other){
+        return Eventually.firstOf(this,other);
+    }
+
+    public <B> Eventually<P2<A, B>> and(Eventually<B> other){
+        return Eventually.join(this,other);
+    }
+
     public static <A, B> Eventually<P2<A, B>> join(Eventually<A> ea, Eventually<B> eb) {
         return wrap(ea.wrapped.thenCombine(eb.wrapped, P::p));
     }
 
     public static <A> Eventually<A> firstOf(Eventually<A> ea, Eventually<A> eb) {
-        return wrap(ea.wrapped.applyToEither(eb.wrapped,a->a));
+        return wrap(ea.wrapped.applyToEither(eb.wrapped, a -> a));
     }
 
 

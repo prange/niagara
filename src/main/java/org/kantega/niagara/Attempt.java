@@ -86,10 +86,10 @@ public class Attempt<A> {
         return value.left().toOption();
     }
 
-    public A orThrow() throws Exception {
+    public A orThrow() {
         if (isThrowable()) {
             Throwable t = value.left().value();
-            throw new Exception("Attempt failed with " + t.getMessage(), t);
+            throw new RuntimeException("Attempt failed with " + t.getMessage(), t);
         } else
             return value.right().value();
     }

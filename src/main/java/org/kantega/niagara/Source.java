@@ -4,8 +4,8 @@ import fj.*;
 import fj.data.Either;
 import fj.data.List;
 import fj.data.Option;
-import fj.data.Stream;
 import fj.function.Booleans;
+import org.kantega.niagara.exchange.Topic;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,6 +17,10 @@ public interface Source<A> {
 
     default <B> Source<B> wrap(F<SourceListener<B>, SourceListener<A>> f) {
         return (closer, handler) -> open(closer, f.f(handler));
+    }
+
+    default Source<A> closeOn(Eventually<Stop> stopSignal){
+        return (closer,handler) -> open(closer.or(stopSignal),handler);
     }
 
     /**
@@ -98,7 +102,7 @@ public interface Source<A> {
      * @return the transformed stream
      */
     default <B> Source<B> mapMealy(Mealy<A, B> initMealy) {
-        return zipWithState(initMealy, Mealy::apply).map(P2::_2);
+        return zipWithState(initMealy, (s, a) -> s.apply(a).toTuple()).map(P2::_2);
     }
 
     /**
@@ -188,6 +192,38 @@ public interface Source<A> {
     default <B> Source<Either<A, B>> or(Source<B> other) {
         return this.<Either<A, B>>map(Either::left).join(other.map(Either::right));
 
+    }
+
+    default Source<A> filter(F<A, Boolean> predicate) {
+        return somes(a -> predicate.f(a) ? Option.some(a) : Option.none());
+    }
+
+    default <B> Source<B> somes(F<A, Option<B>> toOption) {
+        return map(toOption).flatten(o -> o);
+    }
+
+    default <B, C> Source<B> lefts(F<A, Either<B, C>> split) {
+        return map(split).map(e -> e.left().toOption()).somes(i -> i);
+    }
+
+    default <B, C> Source<C> rights(F<A, Either<B, C>> split) {
+        return map(split).map(e -> e.right().toOption()).somes(i -> i);
+    }
+
+    default <LI, RI, LO, RO> Source<Either<LO, RO>> split(
+      F<A, Either<LI, RI>> splitter,
+      F<Source<LI>, Source<LO>> leftStream,
+      F<Source<RI>, Source<RO>> rightStream) {
+
+        Topic<A> aTopic = new Topic<>();
+
+        Source<LO> los =
+          leftStream.f(aTopic.subscribe().lefts(splitter));
+
+        Source<RO> ros =
+          rightStream.f(aTopic.subscribe().rights(splitter));
+
+        return los.or(ros);
     }
 
     /**

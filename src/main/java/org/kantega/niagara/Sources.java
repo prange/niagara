@@ -1,7 +1,14 @@
 package org.kantega.niagara;
 
+import fj.data.Option;
+import fj.function.Effect1;
+import fj.function.Try0;
+import fj.function.TryEffect1;
+
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Sources {
 
@@ -19,11 +26,51 @@ public class Sources {
 
     @SafeVarargs
     public static <A> Source<A> values(A... as) {
-        return iterableBlock(Arrays.asList(as));
+        return fromIterable(Arrays.asList(as));
     }
 
-    public static <A> Source<A> iterableBlock(Iterable<A> a) {
-        return value(a).flatten(i -> i);
+    public static <A> Source<A> fromIterable(Iterable<A> as) {
+        return value(as).flatten(i -> i);
+    }
+
+    public static <A> Source<A> fromIterator(Iterator<A> as) {
+        return callback(cb->as.forEachRemaining(cb::handle));
+    }
+
+    public static <A> Source<A> callback(Effect1<SourceListener<A>> callbackReceiver) {
+        return (closer, handler) -> {
+            callbackReceiver.f(handler::handle);
+            return Eventually.value(Source.closed("End"));
+        };
+    }
+
+    public static <A> Source<A> tryCallback(TryEffect1<Effect1<Try0<A,Exception>>,Exception> callbackReceiver) {
+        return (closer, handler) -> {
+            try {
+                callbackReceiver.f(a -> {
+                    try {
+                        a.f();
+                    } catch (Exception e) {
+                       throw new RuntimeException("Exception while producing value",e);
+                    }
+                });
+            } catch (Exception e) {
+                return Eventually.value(Source.closed("Exception while running Source",e));
+            }
+            return Eventually.value(Source.closed("End"));
+        };
+    }
+
+    public static <A> Task<Option<A>> last(Source<A> source){
+        AtomicReference<A> aAtomicReference =
+          new AtomicReference<>();
+
+        return
+          source
+            .apply(a-> Task.runnableTask(()->aAtomicReference.set(a)))
+            .toTask()
+            .andThen(Task.call(()->Option.fromNull(aAtomicReference.get())));
+
     }
 
 }
