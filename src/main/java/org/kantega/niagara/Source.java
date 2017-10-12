@@ -19,8 +19,8 @@ public interface Source<A> {
         return (closer, handler) -> open(closer, f.f(handler));
     }
 
-    default Source<A> closeOn(Eventually<Stop> stopSignal){
-        return (closer,handler) -> open(closer.or(stopSignal),handler);
+    default Source<A> closeOn(Eventually<Stop> stopSignal) {
+        return (closer, handler) -> open(closer.or(stopSignal), handler);
     }
 
     /**
@@ -71,6 +71,12 @@ public interface Source<A> {
               return handler.handle(updated);
           });
     }
+
+
+    default <S, B> Source<B> mapWithState(S state, F2<S, A, P2<S, B>> f) {
+        return zipWithState(state, f).map(P2::_2);
+    }
+
 
     default Source<P2<Long, A>> zipWithIndex() {
         return
