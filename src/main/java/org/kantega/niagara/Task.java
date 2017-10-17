@@ -124,13 +124,7 @@ public interface Task<A> {
         return () -> Eventually.value(a);
     }
 
-    /**
-     * Creates an async task that is resolved when both tasks are resolved.
-     * The tasks are run in parallell if permitted by the executor.
-     */
-    static <A, B> Task<P2<A, B>> and(final Task<A> one, final Task<B> other) {
-        return () -> Eventually.join(one.execute(), other.execute());
-    }
+
 
     static <A> Task<List<A>> sequence(List<Task<A>> tasks) {
         if(tasks.isEmpty())
@@ -170,6 +164,8 @@ public interface Task<A> {
         return flatMap(a -> Task.value(f.f(a)));
     }
 
+
+
     /**
      * Bind the next Aync to this async. If the first async fails the second is not run. If the second fails the result is a fail.
      *
@@ -179,6 +175,14 @@ public interface Task<A> {
      */
     default <B> Task<B> flatMap(F<A, Task<B>> f) {
         return () -> Task.this.execute().bind(a -> f.f(a).execute());
+    }
+
+    /**
+     * Creates an async task that is resolved when both tasks are resolved.
+     * The tasks are run in parallell if permitted by the executor.
+     */
+    default <B> Task<P2<A, B>> and(final Task<B> other) {
+        return () -> Eventually.join(execute(), other.execute());
     }
 
 
@@ -203,6 +207,16 @@ public interface Task<A> {
      */
     default <B> Task<B> andThen(final Task<B> other) {
         return flatMap(a -> other);
+    }
+
+    /**
+     * Runs this task, but yields the supplied value instead of the original
+     * @param value
+     * @param <B>
+     * @return
+     */
+    default <B> Task<B> andJust(B value){
+        return map(x->value);
     }
 
     /**

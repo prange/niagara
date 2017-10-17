@@ -74,7 +74,8 @@ public class Eventually<A> {
     }
 
     public <B> Eventually<B> bind(F<A, Eventually<B>> f) {
-        return wrap(wrapped.thenCompose(a -> f.f(a).wrapped));
+        return wrap(wrapped.thenCompose(a ->
+          f.f(a).wrapped));
     }
 
     public Eventually<A> or(Eventually<A> other){

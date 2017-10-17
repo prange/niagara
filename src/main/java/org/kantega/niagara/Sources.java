@@ -39,7 +39,7 @@ public class Sources {
 
     public static <A> Source<A> callback(Effect1<SourceListener<A>> callbackReceiver) {
         return (closer, handler) -> {
-            callbackReceiver.f(handler::handle);
+            callbackReceiver.f(handler);
             return Eventually.value(Source.closed("End"));
         };
     }
@@ -47,15 +47,16 @@ public class Sources {
     public static <A> Source<A> tryCallback(TryEffect1<Effect1<Try0<A,Exception>>,Exception> callbackReceiver) {
         return (closer, handler) -> {
             try {
-                callbackReceiver.f(a -> {
+                callbackReceiver.f(callable -> {
                     try {
-                        a.f();
+                        A a = callable.f();
+                        handler.handle(a).execute().await(Duration.ofSeconds(10));
                     } catch (Exception e) {
                        throw new RuntimeException("Exception while producing value",e);
                     }
                 });
             } catch (Exception e) {
-                return Eventually.value(Source.closed("Exception while running Source",e));
+                return Eventually.fail(e);
             }
             return Eventually.value(Source.closed("End"));
         };

@@ -4,12 +4,16 @@ import fj.*;
 import fj.data.Either;
 import fj.data.List;
 import fj.data.Option;
+import fj.data.Stream;
 import fj.function.Booleans;
 import org.kantega.niagara.exchange.Topic;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import static fj.function.Booleans.*;
+import static org.kantega.niagara.Task.*;
 
 public interface Source<A> {
 
@@ -34,7 +38,7 @@ public interface Source<A> {
         return () ->
           open(
             Eventually.wrap(closeSignal),
-            a -> Task.noOp
+            a -> noOp
           )
             .map(closedAttempt -> {
                 closeSignal.complete(stop);
@@ -107,9 +111,10 @@ public interface Source<A> {
      * @param <B>       The type of the value the mealy outputs
      * @return the transformed stream
      */
-    default <B> Source<B> mapMealy(Mealy<A, B> initMealy) {
+    default <B> Source<B> mapWithMealy(Mealy<A, B> initMealy) {
         return zipWithState(initMealy, (s, a) -> s.apply(a).toTuple()).map(P2::_2);
     }
+
 
     /**
      * Creates a source where the output of the transformation
@@ -121,7 +126,7 @@ public interface Source<A> {
      */
     default <B> Source<B> flatten(F<A, Iterable<B>> f) {
         return
-          wrap(handler -> a -> Task.sequence(List.iterableList(f.f(a)).map(handler::handle)).toUnit());
+          wrap(handler -> a -> sequence(List.iterableList(f.f(a)).map(handler::handle)).toUnit());
     }
 
     /**
@@ -200,8 +205,12 @@ public interface Source<A> {
 
     }
 
-    default Source<A> filter(F<A, Boolean> predicate) {
+    default Source<A> keep(F<A, Boolean> predicate) {
         return somes(a -> predicate.f(a) ? Option.some(a) : Option.none());
+    }
+
+    default Source<A> drop(F<A, Boolean> predicate) {
+        return keep(not(predicate));
     }
 
     default <B> Source<B> somes(F<A, Option<B>> toOption) {
@@ -216,20 +225,29 @@ public interface Source<A> {
         return map(split).map(e -> e.right().toOption()).somes(i -> i);
     }
 
-    default <LI, RI, LO, RO> Source<Either<LO, RO>> split(
-      F<A, Either<LI, RI>> splitter,
-      F<Source<LI>, Source<LO>> leftStream,
-      F<Source<RI>, Source<RO>> rightStream) {
+    default <B> Source<B> split(
+      F<Source<A>, Source<B>> leftStream,
+      F<Source<A>, Source<B>> rightStream) {
 
-        Topic<A> aTopic = new Topic<>();
 
-        Source<LO> los =
-          leftStream.f(aTopic.subscribe().lefts(splitter));
+        return (closer, handler) -> {
+            Topic<A> aTopic = new Topic<>();
+            Topic<B> bTopic = new Topic<>();
 
-        Source<RO> ros =
-          rightStream.f(aTopic.subscribe().rights(splitter));
+            Task<Closed> los =
+              leftStream.f(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
 
-        return los.or(ros);
+            Task<Closed> ros =
+              rightStream.f(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
+
+            Task<Closed> tos =
+              Source.this.apply(aTopic::publish).toTask();
+
+            Task<Closed> bos =
+              bTopic.subscribe().apply(handler::handle).toTask();
+
+            return los.and(ros).and(tos).and(bos).andJust(Source.stopped()).execute();
+        };
     }
 
     /**
@@ -240,31 +258,31 @@ public interface Source<A> {
      * @return
      */
     default <B> Source<B> apply(F<A, Task<B>> task) {
-        return wrap(handler -> a ->
-          task.f(a).flatMap(handler::handle)
-        );
+        return (closer, handler) -> {
+            CompletableFuture<Closed> failCloser =
+              new CompletableFuture<>();
+
+            return open(closer, a ->
+              task
+                .f(a)
+                .flatMap(handler::handle)
+                .onFail(t -> runnableTask(() -> failCloser.completeExceptionally(t)))
+            ).or(Eventually.wrap(failCloser));
+        };
     }
 
-    default Source<A> keep(F<A, Boolean> pred) {
-        return
-          wrap(listener -> a ->
-            pred.f(a) ?
-              listener.handle(a) :
-              Task.noOp
-          );
-    }
 
     default Source<A> take(long max) {
         return zipWithIndex().until(pair -> pair._1() > max).map(P2::_2);
     }
 
-    default Source<A> drop(long max) {
-        return zipWithIndex().until(pair -> pair._1() > max).map(P2::_2);
+    default Source<A> skip(long max) {
+        return zipWithIndex().drop(pair -> pair._1() < max).map(P2::_2);
     }
 
 
     default Source<A> asLongAs(F<A, Boolean> pred) {
-        return until(Booleans.not(pred));
+        return until(not(pred));
     }
 
     default Source<A> until(F<A, Boolean> predicate) {
@@ -274,7 +292,7 @@ public interface Source<A> {
             Eventually<Closed> innerStopped =
               open(closer, a ->
                 predicate.f(a) ?
-                  Task.runnableTask(() -> closed.complete(Source.ended())) :
+                  runnableTask(() -> closed.complete(ended())) :
                   handler.handle(a));
 
             return Eventually.firstOf(innerStopped, Eventually.wrap(closed));

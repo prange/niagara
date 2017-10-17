@@ -8,13 +8,11 @@ import org.kantega.niagara.Task;
 import org.kantega.niagara.exchange.AsyncDroppingInputQueue;
 
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static fj.F2Functions.tuple;
-import static org.kantega.niagara.Task.runnableTask;
 import static org.kantega.niagara.example.Utils.println;
 import static org.kantega.niagara.example.Utils.read;
 
@@ -32,7 +30,7 @@ public class Example9_queue {
         AsyncDroppingInputQueue<String> queue =
           new AsyncDroppingInputQueue<>(10, pool);
 
-        long numberOfElements = 100;
+        long numberOfElements = 10;
 
         F<String, Task<Unit>> increment =
           u -> Task.runnableTask(counter::incrementAndGet);
@@ -47,6 +45,7 @@ public class Example9_queue {
             .subscribe()
             .apply(increment)
             .zipWithIndex()
+            .apply(t->Utils.println(t._1().toString()).map(u->t))
             .asLongAs(tuple((index, value) -> index < numberOfElements))
             .onClose(print);
 
