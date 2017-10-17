@@ -44,6 +44,10 @@ public interface Source<A> {
             });
     }
 
+    default Source<A> to(Sink<A> sink) {
+        return apply(a -> sink.consume(a).map(u -> a));
+    }
+
     /**
      * Transforms each element the source produces
      *
@@ -76,7 +80,8 @@ public interface Source<A> {
 
 
     default <S, B> Source<B> mapWithState(S state, F2<S, A, P2<S, B>> f) {
-        return zipWithState(state, f).map(P2::_2);
+        return
+          zipWithState(state, f).map(P2::_2);
     }
 
 
@@ -186,15 +191,13 @@ public interface Source<A> {
     }
 
     /**
-     * Use update to make changes to the stream in a chaining fashion
-     * instead of a nested fashion when applying transformations that are
-     * not in the api. Keeps the code tidier.
+     * Send the values of this source through the stream.
      *
      * @param f
      * @param <B>
      * @return
      */
-    default <B> Source<B> transform(F<Source<A>, Source<B>> f) {
+    default <B> Source<B> through(F<Source<A>, Source<B>> f) {
         return f.f(this);
     }
 
@@ -224,8 +227,8 @@ public interface Source<A> {
     }
 
     default <B> Source<B> split(
-      F<Source<A>, Source<B>> leftStream,
-      F<Source<A>, Source<B>> rightStream) {
+      Stream<A,B> leftStream,
+      Stream<A,B> rightStream) {
 
 
         return (closer, handler) -> {
@@ -233,10 +236,10 @@ public interface Source<A> {
             Topic<B> bTopic = new Topic<>();
 
             Task<Closed> los =
-              leftStream.f(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
+              leftStream.apply(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
 
             Task<Closed> ros =
-              rightStream.f(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
+              rightStream.apply(aTopic.subscribe()).apply(bTopic::publish).closeOn(closer).toTask();
 
             Task<Closed> tos =
               Source.this.apply(aTopic::publish).toTask();
