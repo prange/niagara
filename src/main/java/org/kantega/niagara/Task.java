@@ -215,7 +215,7 @@ public interface Task<A> {
      * @param <B>
      * @return
      */
-    default <B> Task<B> andJust(B value){
+    default <B> Task<B> thenJust(B value){
         return map(x->value);
     }
 

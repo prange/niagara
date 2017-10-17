@@ -4,8 +4,6 @@ import fj.*;
 import fj.data.Either;
 import fj.data.List;
 import fj.data.Option;
-import fj.data.Stream;
-import fj.function.Booleans;
 import org.kantega.niagara.exchange.Topic;
 
 import java.util.concurrent.CompletableFuture;
@@ -246,7 +244,7 @@ public interface Source<A> {
             Task<Closed> bos =
               bTopic.subscribe().apply(handler::handle).toTask();
 
-            return los.and(ros).and(tos).and(bos).andJust(Source.stopped()).execute();
+            return los.and(ros).and(tos).and(bos).thenJust(Source.stopped()).execute();
         };
     }
 
