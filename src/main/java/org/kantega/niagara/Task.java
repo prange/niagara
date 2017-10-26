@@ -91,8 +91,12 @@ public interface Task<A> {
      */
     static Task<Unit> runnableTask(Runnable task) {
         return async(callback -> {
-            task.run();
-            callback.f(Attempt.value(Unit.unit()));
+            try {
+                task.run();
+                callback.f(Attempt.value(Unit.unit()));
+            } catch (Exception e) {
+                callback.f(Attempt.fail(e));
+            }
         });
     }
 
@@ -125,12 +129,11 @@ public interface Task<A> {
     }
 
 
-
     static <A> Task<List<A>> sequence(List<Task<A>> tasks) {
-        if(tasks.isEmpty())
+        if (tasks.isEmpty())
             return Task.value(List.nil());
         else
-            return tasks.head().flatMap(a->sequence(tasks.tail()).map(list -> list.cons(a)));
+            return tasks.head().flatMap(a -> sequence(tasks.tail()).map(list -> list.cons(a)));
     }
 
 
@@ -165,7 +168,6 @@ public interface Task<A> {
     }
 
 
-
     /**
      * Bind the next Aync to this async. If the first async fails the second is not run. If the second fails the result is a fail.
      *
@@ -187,11 +189,16 @@ public interface Task<A> {
 
 
     default <B> Task<B> mapAttempt(F<Throwable, B> onFail, F<A, B> onValue) {
-        return bindAttempt(t -> Task.value(onFail.f(t)), a -> Task.value(onValue.f(a)));
+        return bindAttempt(
+          t -> Task.value(onFail.f(t)),
+          a -> Task.value(onValue.f(a)));
     }
 
     default <B> Task<B> bindAttempt(F<Throwable, Task<B>> onFail, F<A, Task<B>> onValue) {
-        return () -> Task.this.execute().handle(onFail, onValue).bind(Task::execute);
+        return () ->
+          Task.this.execute()
+            .handle(onFail, onValue)
+            .bind(Task::execute);
     }
 
     default Task<A> onFail(F<Throwable, Task<A>> f) {
@@ -206,17 +213,22 @@ public interface Task<A> {
      * Run the other Async task after this task completes, disregarding the outcome of the first Async.
      */
     default <B> Task<B> andThen(final Task<B> other) {
-        return flatMap(a -> other);
+        return
+          flatMap(a ->
+            other)
+          .onFail(t->
+            other);
     }
 
     /**
      * Runs this task, but yields the supplied value instead of the original
+     *
      * @param value
      * @param <B>
      * @return
      */
-    default <B> Task<B> thenJust(B value){
-        return map(x->value);
+    default <B> Task<B> thenJust(B value) {
+        return map(x -> value);
     }
 
     /**
