@@ -13,7 +13,7 @@ import java.util.stream.StreamSupport;
 
 import static org.kantega.niagara.Task.*;
 
-public class AsyncDroppingInputQueue<A> {
+public class AsyncDroppingInputQueue<A> implements Sink<A>{
 
     private final long       bounds;
     private final AtomicLong size;
@@ -28,6 +28,7 @@ public class AsyncDroppingInputQueue<A> {
         this.executor = executor;
         this.bounds = bounds;
     }
+
 
 
     public Task<Unit> offer(A a) {
@@ -65,5 +66,10 @@ public class AsyncDroppingInputQueue<A> {
             work();
             return closed;
         };
+    }
+
+    @Override
+    public Task<Unit> consume(A a) {
+        return offer(a);
     }
 }

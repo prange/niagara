@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static fj.P.*;
 import static fj.function.Booleans.*;
 import static org.kantega.niagara.Task.*;
 
@@ -69,7 +70,7 @@ public interface Source<A> {
      * @return the transformed source
      */
     default <S, B> Source<P2<S, B>> zipWithState(S initState, F2<S, A, P2<S, B>> f) {
-        AtomicReference<P2<S, B>> s = new AtomicReference<>(P.p(initState, null));
+        AtomicReference<P2<S, B>> s = new AtomicReference<>(p(initState, null));
 
         return
           wrap(handler -> a -> {
@@ -87,7 +88,7 @@ public interface Source<A> {
 
     default Source<P2<Long, A>> zipWithIndex() {
         return
-          zipWithState(0L, (sum, val) -> P.p(sum + 1, val));
+          zipWithState(0L, (sum, val) -> p(sum + 1, val));
     }
 
     /**
@@ -102,7 +103,7 @@ public interface Source<A> {
     default <S> Source<S> foldLeft(S initState, F2<S, A, S> f) {
         return zipWithState(initState, (s, a) -> {
             S next = f.f(s, a);
-            return P.p(next, next);
+            return p(next, next);
         }).map(P2::_1);
     }
 
@@ -197,8 +198,8 @@ public interface Source<A> {
      * @param <B>
      * @return
      */
-    default <B> Source<B> through(F<Source<A>, Source<B>> f) {
-        return f.f(this);
+    default <B> Source<B> through(Stream<A, B> f) {
+        return f.apply(this);
     }
 
     default <B> Source<Either<A, B>> or(Source<B> other) {
@@ -207,28 +208,21 @@ public interface Source<A> {
     }
 
     default Source<A> keep(F<A, Boolean> predicate) {
-        return somes(a -> predicate.f(a) ? Option.some(a) : Option.none());
+        return keepSomes(a -> predicate.f(a) ? Option.some(a) : Option.none());
     }
 
     default Source<A> drop(F<A, Boolean> predicate) {
         return keep(not(predicate));
     }
 
-    default <B> Source<B> somes(F<A, Option<B>> toOption) {
+    default <B> Source<B> keepSomes(F<A, Option<B>> toOption) {
         return map(toOption).flatten(o -> o);
     }
 
-    default <B, C> Source<B> lefts(F<A, Either<B, C>> split) {
-        return map(split).map(e -> e.left().toOption()).somes(i -> i);
-    }
-
-    default <B, C> Source<C> rights(F<A, Either<B, C>> split) {
-        return map(split).map(e -> e.right().toOption()).somes(i -> i);
-    }
 
     default <B> Source<B> split(
-      Stream<A,B> leftStream,
-      Stream<A,B> rightStream) {
+      Stream<A, B> leftStream,
+      Stream<A, B> rightStream) {
 
 
         return (closer, handler) -> {
@@ -252,7 +246,7 @@ public interface Source<A> {
     }
 
     /**
-     * Failed tasks are ignored!
+     * Failed tasks halt the source!
      *
      * @param task
      * @param <B>
@@ -299,6 +293,21 @@ public interface Source<A> {
             return Eventually.firstOf(innerStopped, Eventually.wrap(closed));
         };
     }
+
+    default Source<P2<A, A>> window2() {
+        Source<P2<Option<A>, Option<A>>> pairs =
+          zipWithState(Option.none(), (maybeFirst, second) -> p(Option.some(second), maybeFirst));
+        return pairs.keepSomes(pair -> pair._1().bind(first -> pair._2().map(second -> p(first, second))));
+    }
+
+    default Source<A> changes(Equal<A> eq) {
+        return compareKeep(eq.eq());
+    }
+
+    default Source<A> compareKeep(F2<A, A, Boolean> compare) {
+        return window2().keep(F2Functions.tuple(compare)).map(P2.__2());
+    }
+
 
     static Closed stopped() {
         return closed("stopped");
