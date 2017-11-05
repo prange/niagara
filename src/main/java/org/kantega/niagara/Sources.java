@@ -1,5 +1,6 @@
 package org.kantega.niagara;
 
+import fj.data.List;
 import fj.data.Option;
 import fj.function.Effect1;
 import fj.function.Try0;
@@ -74,4 +75,15 @@ public class Sources {
 
     }
 
+    public static <A> Task<List<A>> toList(Source<A> source){
+        AtomicReference<List<A>> aAtomicReference =
+          new AtomicReference<>(List.nil());
+
+        return
+          source
+            .apply(a-> Task.runnableTask(()->aAtomicReference.updateAndGet(list->list.cons(a))))
+            .toTask()
+            .andThen(Task.call(()->aAtomicReference.get().reverse()));
+
+    }
 }
