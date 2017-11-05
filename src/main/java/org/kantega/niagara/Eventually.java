@@ -78,12 +78,12 @@ public class Eventually<A> {
           f.f(a).wrapped));
     }
 
-    public Eventually<A> or(Eventually<A> other){
-        return Eventually.firstOf(this,other);
+    public Eventually<A> or(Eventually<A> other) {
+        return Eventually.firstOf(this, other);
     }
 
-    public <B> Eventually<P2<A, B>> and(Eventually<B> other){
-        return Eventually.join(this,other);
+    public <B> Eventually<P2<A, B>> and(Eventually<B> other) {
+        return Eventually.join(this, other);
     }
 
     public static <A, B> Eventually<P2<A, B>> join(Eventually<A> ea, Eventually<B> eb) {
@@ -107,10 +107,12 @@ public class Eventually<A> {
     }
 
     public <B> Eventually<B> handle(F<Throwable, B> onFail, F<A, B> onSuccess) {
-        return wrap(wrapped.handle((aOrNull, throwableOrNull) -> {
-            Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
-            return result.fold(onFail, onSuccess);
-        }));
+        return wrap(
+          wrapped
+            .handle((aOrNull, throwableOrNull) -> {
+                Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
+                return result.fold(onFail, onSuccess);
+            }));
     }
 
     public Attempt<A> await(Duration duration) {

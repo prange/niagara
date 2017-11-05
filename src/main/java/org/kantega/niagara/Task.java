@@ -1,18 +1,14 @@
 package org.kantega.niagara;
 
 import fj.*;
-import fj.control.parallel.Actor;
 import fj.control.parallel.Strategy;
-import fj.data.Either;
 import fj.data.List;
-import fj.data.Option;
 import fj.function.Effect1;
 import fj.function.Try0;
 import fj.function.TryEffect0;
 
 import java.time.Duration;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -51,9 +47,12 @@ public interface Task<A> {
             CompletableFuture<A> completableFuture =
               new CompletableFuture<>();
 
-            runner.run(attempt ->
-              attempt.doEffect(completableFuture::completeExceptionally, completableFuture::complete));
-
+            try {
+                runner.run(attempt ->
+                  attempt.doEffect(completableFuture::completeExceptionally, completableFuture::complete));
+            } catch (Exception e) {
+                return Eventually.fail(e);
+            }
 
             return Eventually.wrap(completableFuture);
         };
@@ -133,7 +132,7 @@ public interface Task<A> {
         if (tasks.isEmpty())
             return Task.value(List.nil());
         else
-            return tasks.head().flatMap(a -> sequence(tasks.tail()).map(list -> list.cons(a)));
+            return tasks.head().bind(a -> sequence(tasks.tail()).map(list -> list.cons(a)));
     }
 
 
@@ -164,7 +163,7 @@ public interface Task<A> {
      * @return An Async with the result transformed.
      */
     default <B> Task<B> map(F<A, B> f) {
-        return flatMap(a -> Task.value(f.f(a)));
+        return bind(a -> Task.value(f.f(a)));
     }
 
 
@@ -175,8 +174,13 @@ public interface Task<A> {
      * @param <B> the type the next async produces.
      * @return An Async that first executes this task, and then the next task when this task is finished.
      */
-    default <B> Task<B> flatMap(F<A, Task<B>> f) {
-        return () -> Task.this.execute().bind(a -> f.f(a).execute());
+    default <B> Task<B> bind(F<A, Task<B>> f) {
+        return () ->
+          Task.this.execute()
+            .bind(a ->
+              f
+                .f(a)
+                .execute());
     }
 
     /**
@@ -184,7 +188,8 @@ public interface Task<A> {
      * The tasks are run in parallell if permitted by the executor.
      */
     default <B> Task<P2<A, B>> and(final Task<B> other) {
-        return () -> Eventually.join(execute(), other.execute());
+        return () ->
+          Eventually.join(execute(), other.execute());
     }
 
 
@@ -214,10 +219,10 @@ public interface Task<A> {
      */
     default <B> Task<B> andThen(final Task<B> other) {
         return
-          flatMap(a ->
+          bind(a ->
             other)
-          .onFail(t->
-            other);
+            .onFail(t ->
+              other);
     }
 
     /**

@@ -36,7 +36,7 @@ public class Example4_async {
         //the result
         Task<String> print =
           read(counter)
-            .flatMap(sum -> println("The sum is " + sum));
+            .bind(sum -> println("The sum is " + sum));
 
         //Constructing a source that reads from a db,
         //folds over its values and sets a counter

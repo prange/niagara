@@ -37,7 +37,7 @@ public class Example9_queue {
 
         Task<Unit> print =
           read(counter)
-            .flatMap(count ->
+            .bind(count ->
               println("The sum is " + count)).toUnit();
 
         Source<?> qSource =

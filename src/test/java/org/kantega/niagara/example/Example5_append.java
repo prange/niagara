@@ -22,7 +22,7 @@ public class Example5_append {
 
         Task<String> print =
           read(counter)
-            .flatMap(sum -> println("The sum is " + sum));
+            .bind(sum -> println("The sum is " + sum));
 
         Source<?> dbSource =
           new AsyncFakeDb(pool)

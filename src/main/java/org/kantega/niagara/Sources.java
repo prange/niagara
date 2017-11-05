@@ -19,18 +19,18 @@ public class Sources {
         return (closer, handler) -> Eventually.value(Source.ended());
     }
 
-    public static <A> Source<A> value(A a) {
+    public static <A> Source<A> emitOne(A a) {
         return (closer, handler) ->
           handler.handle(a).execute().map(u -> Source.ended());
     }
 
     @SafeVarargs
-    public static <A> Source<A> values(A... as) {
+    public static <A> Source<A> emit(A... as) {
         return fromIterable(Arrays.asList(as));
     }
 
     public static <A> Source<A> fromIterable(Iterable<A> as) {
-        return value(as).flatten(i -> i);
+        return emitOne(as).flatten(i -> i);
     }
 
     public static <A> Source<A> fromIterator(Iterator<A> as) {

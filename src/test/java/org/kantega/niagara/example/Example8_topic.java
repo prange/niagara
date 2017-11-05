@@ -5,8 +5,6 @@ import org.kantega.niagara.Task;
 import org.kantega.niagara.exchange.Topic;
 
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.kantega.niagara.example.Utils.println;
@@ -24,7 +22,7 @@ public class Example8_topic {
 
         Task<String> print =
           read(counter)
-            .flatMap(sum -> println("The sum is " + sum));
+            .bind(sum -> println("The sum is " + sum));
 
 
         Source<String> topicASource =

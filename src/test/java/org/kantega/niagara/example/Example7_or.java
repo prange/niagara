@@ -1,7 +1,6 @@
 package org.kantega.niagara.example;
 
 import fj.Unit;
-import fj.data.Either;
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Sources;
 import org.kantega.niagara.Task;
@@ -25,10 +24,10 @@ public class Example7_or {
 
         Task<String> print =
           read(counter)
-            .flatMap(sum -> println("The sum is " + sum));
+            .bind(sum -> println("The sum is " + sum));
 
         Source<String> strings1 =
-          Sources.values("one", "two", "three");
+          Sources.emit("one", "two", "three");
 
         Source<Unit> dbSource =
           new AsyncFakeDb(pool).or(strings1)

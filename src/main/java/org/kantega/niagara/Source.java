@@ -208,14 +208,14 @@ public interface Source<A> {
     }
 
     default Source<A> keep(F<A, Boolean> predicate) {
-        return keepSomes(a -> predicate.f(a) ? Option.some(a) : Option.none());
+        return mapOption(a -> predicate.f(a) ? Option.some(a) : Option.none());
     }
 
     default Source<A> drop(F<A, Boolean> predicate) {
         return keep(not(predicate));
     }
 
-    default <B> Source<B> keepSomes(F<A, Option<B>> toOption) {
+    default <B> Source<B> mapOption(F<A, Option<B>> toOption) {
         return map(toOption).flatten(o -> o);
     }
 
@@ -260,7 +260,7 @@ public interface Source<A> {
             return open(closer, a ->
               task
                 .f(a)
-                .flatMap(handler::handle)
+                .bind(handler::handle)
                 .onFail(t -> runnableTask(() -> failCloser.completeExceptionally(t)))
             ).or(Eventually.wrap(failCloser));
         };
@@ -297,7 +297,7 @@ public interface Source<A> {
     default Source<P2<A, A>> window2() {
         Source<P2<Option<A>, Option<A>>> pairs =
           zipWithState(Option.none(), (maybeFirst, second) -> p(Option.some(second), maybeFirst));
-        return pairs.keepSomes(pair -> pair._1().bind(first -> pair._2().map(second -> p(first, second))));
+        return pairs.mapOption(pair -> pair._1().bind(first -> pair._2().map(second -> p(first, second))));
     }
 
     default Source<A> changes(Equal<A> eq) {

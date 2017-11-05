@@ -13,7 +13,7 @@ public class Example1_strings {
     public static void main(String[] args) {
 
         Source<String> strings1 =
-          Sources.values("one", "two", "three");
+          Sources.emit("one", "two", "three");
 
         Task<?> streamTask =
           strings1

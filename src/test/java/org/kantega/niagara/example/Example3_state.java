@@ -38,7 +38,7 @@ public class Example3_state {
         //the result
         Task<String> print =
           read(counter)
-            .flatMap(sum -> println("The sum is " + sum));
+            .bind(sum -> println("The sum is " + sum));
 
         //Starts the source and waits for completion
         dbSource.toTask().execute();
