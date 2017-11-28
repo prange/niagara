@@ -16,12 +16,29 @@ import static org.kantega.niagara.Task.*;
 
 public interface Source<A> {
 
-    Eventually<Closed> open(Eventually<Stop> stopSignal, SourceListener<A> f);
+    /**
+     * Signals the source to start emitting values that can be handeled by the sourcelistenre.
+     * @param stopSignal Signals the source to stop emitting values and cleanup its resources
+     * @param sink Receiver of the emitted values
+     * @return A Close event, signalling that this source has emitted its final value
+     */
+    Eventually<Closed> open(Eventually<Stop> stopSignal, SourceListener<A> sink);
 
+    /**
+     * Wraps this source with a function that converts its listener
+     * @param f The function that converts the listener
+     * @param <B> the new type of the values this source emits
+     * @return the new source
+     */
     default <B> Source<B> wrap(F<SourceListener<B>, SourceListener<A>> f) {
         return (closer, handler) -> open(closer, f.f(handler));
     }
 
+    /**
+     * Stops the source on the Stop event, signalling all onClose tasks to run. Used for resource control and coordination
+     * @param stopSignal Eventually a stop value
+     * @return a source that stops on the Stop Event
+     */
     default Source<A> closeOn(Eventually<Stop> stopSignal) {
         return (closer, handler) -> open(closer.or(stopSignal), handler);
     }
@@ -45,6 +62,11 @@ public interface Source<A> {
             });
     }
 
+    /**
+     * Makes this source emit its values to a sink
+     * @param sink The sink that receives the values
+     * @return a new source that sends its values to the sink
+     */
     default Source<A> to(Sink<A> sink) {
         return apply(a -> sink.consume(a).map(u -> a));
     }
@@ -79,13 +101,23 @@ public interface Source<A> {
           });
     }
 
-
+    /**
+     * Maps every value this source emits with the help of a state.
+     * @param state The initial state
+     * @param f The mapping function
+     * @param <S> the type of the state
+     * @param <B> the type values are mapped to
+     * @return a source that emits the mapped values
+     */
     default <S, B> Source<B> mapWithState(S state, F2<S, A, P2<S, B>> f) {
         return
           zipWithState(state, f).map(P2::_2);
     }
 
-
+    /**
+     * Creates a source that emits the index of the current value, counting from the beginning of the stream
+     * @return a stream where every value is paired with its index.
+     */
     default Source<P2<Long, A>> zipWithIndex() {
         return
           zipWithState(0L, (sum, val) -> p(sum + 1, val));
@@ -202,19 +234,41 @@ public interface Source<A> {
         return f.apply(this);
     }
 
+    /**
+     * Creates a stream that emits either a value from this stream or a values from the other stream.
+     * @param other The stream this stream is combined with
+     * @param <B>THe type of the values the other stream is emitting
+     * @return a new stream that emits both values from this stream and the other stream
+     */
     default <B> Source<Either<A, B>> or(Source<B> other) {
         return this.<Either<A, B>>map(Either::left).join(other.map(Either::right));
 
     }
 
+    /**
+     * Alias for filter. Creates a stream that only keeps values that are evaluated to true by the predicate
+     * @param predicate THe predicate
+     * @return A new stream with only elements that passed the predicate
+     */
     default Source<A> keep(F<A, Boolean> predicate) {
         return mapOption(a -> predicate.f(a) ? Option.some(a) : Option.none());
     }
 
+    /**
+     * THe inverse of keep. Creates a new stream without the values that evaluate to true by the predicate
+     * @param predicate The predicate
+     * @return A new stream
+     */
     default Source<A> drop(F<A, Boolean> predicate) {
         return keep(not(predicate));
     }
 
+    /**
+     * Lets you map every element to an optional output. Keeps only elements that are Some().
+     * @param toOption The mapping function
+     * @param <B> The type of the result of the mapping
+     * @return a new stream with only the somes.
+     */
     default <B> Source<B> mapOption(F<A, Option<B>> toOption) {
         return map(toOption).flatten(o -> o);
     }
@@ -267,19 +321,38 @@ public interface Source<A> {
     }
 
 
+    /**
+     * Emit only as many elements as max.
+     * @param max The maximum number of elements this stream emits.
+     * @return A new stream
+     */
     default Source<A> take(long max) {
         return zipWithIndex().until(pair -> pair._1() > max).map(P2::_2);
     }
 
-    default Source<A> skip(long max) {
+    /**
+     * Skips the max number of elements before emitting
+     * @param count The number of elements to slip
+     * @return a new stream without the count number of first elemements.
+     */
+    default Source<A> skip(long  count) {
         return zipWithIndex().drop(pair -> pair._1() < max).map(P2::_2);
     }
 
-
+    /**
+     * A stream that continues to emit values as long as they evaluated to true. When a value evaluates to false, the stream halts.
+     * @param pred The predicate.
+     * @return A new stream.
+     */
     default Source<A> asLongAs(F<A, Boolean> pred) {
         return until(not(pred));
     }
 
+    /**
+     * A stream that halts when a value is evaluated to true by the predicate.
+     * @param predicate
+     * @return
+     */
     default Source<A> until(F<A, Boolean> predicate) {
         CompletableFuture<Closed> closed = new CompletableFuture<>();
 
@@ -294,16 +367,30 @@ public interface Source<A> {
         };
     }
 
+    /**
+     * Creates a stream with a window of the two last elements.
+     * @return
+     */
     default Source<P2<A, A>> window2() {
         Source<P2<Option<A>, Option<A>>> pairs =
           zipWithState(Option.none(), (maybeFirst, second) -> p(Option.some(second), maybeFirst));
         return pairs.mapOption(pair -> pair._1().bind(first -> pair._2().map(second -> p(first, second))));
     }
 
+    /**
+     * A stream that only emits changing values. If an emitted value equals its predecessor, it is not emitted.
+     * @param eq The definition of equals
+     * @return a new stream with only chaning values
+     */
     default Source<A> changes(Equal<A> eq) {
         return compareKeep(eq.eq());
     }
 
+    /**
+     * A stream that compares a value to its predecessor. If the predivate yields true, the value is emitted.
+     * @param compare
+     * @return
+     */
     default Source<A> compareKeep(F2<A, A, Boolean> compare) {
         return window2().keep(F2Functions.tuple(compare)).map(P2.__2());
     }
