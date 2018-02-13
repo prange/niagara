@@ -336,7 +336,7 @@ public interface Source<A> {
      * @return a new stream without the count number of first elemements.
      */
     default Source<A> skip(long  count) {
-        return zipWithIndex().drop(pair -> pair._1() < max).map(P2::_2);
+        return zipWithIndex().drop(pair -> pair._1() < count).map(P2::_2);
     }
 
     /**
@@ -350,8 +350,8 @@ public interface Source<A> {
 
     /**
      * A stream that halts when a value is evaluated to true by the predicate.
-     * @param predicate
-     * @return
+     * @param predicate The predicate that tests each value
+     * @return a new stream
      */
     default Source<A> until(F<A, Boolean> predicate) {
         CompletableFuture<Closed> closed = new CompletableFuture<>();
@@ -369,7 +369,7 @@ public interface Source<A> {
 
     /**
      * Creates a stream with a window of the two last elements.
-     * @return
+     * @return a new stream
      */
     default Source<P2<A, A>> window2() {
         Source<P2<Option<A>, Option<A>>> pairs =
@@ -388,8 +388,8 @@ public interface Source<A> {
 
     /**
      * A stream that compares a value to its predecessor. If the predivate yields true, the value is emitted.
-     * @param compare
-     * @return
+     * @param compare The predicate that compares the two values
+     * @return a new stream
      */
     default Source<A> compareKeep(F2<A, A, Boolean> compare) {
         return window2().keep(F2Functions.tuple(compare)).map(P2.__2());
