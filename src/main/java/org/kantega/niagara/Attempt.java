@@ -6,6 +6,7 @@ import fj.data.Either;
 import fj.data.Option;
 import fj.function.Effect1;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static fj.P.p;
@@ -55,6 +56,12 @@ public class Attempt<A> {
             attempt.toOption().foreachDoEffect(onA);
             attempt.failure().foreachDoEffect(onThrowable);
         };
+    }
+
+    public CompletableFuture<A> toCompletedFuture(){
+        CompletableFuture<A> cf = new CompletableFuture<>();
+        doEffect(cf::completeExceptionally, cf::complete);
+        return cf;
     }
 
     public <B> Attempt<B> map(F<A, B> f) {

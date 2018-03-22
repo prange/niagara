@@ -30,7 +30,6 @@ public interface Task<A> {
     Strategy<Unit> defaultStrategy =
       Strategy.seqStrategy();
 
-
     Task<Unit> noOp =
       Task.value(Unit.unit());
 

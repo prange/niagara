@@ -9,6 +9,7 @@ import fj.function.Effect1;
 import javax.swing.text.html.Option;
 import java.time.Duration;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 /**
  * A computation that eventually yields an A. The equvalent as a Future or Promise.
@@ -21,9 +22,9 @@ import java.util.concurrent.*;
  */
 public class Eventually<A> {
 
-    final CompletionStage<A> wrapped;
+    final CompletableFuture<A> wrapped;
 
-    public Eventually(CompletionStage<A> wrapped) {
+    public Eventually(CompletableFuture<A> wrapped) {
         this.wrapped = wrapped;
     }
 
@@ -34,8 +35,19 @@ public class Eventually<A> {
      * @param <A>     The type of the value that eventually is produced
      * @return
      */
-    public static <A> Eventually<A> wrap(CompletionStage<A> wrapped) {
+    public static <A> Eventually<A> wrap(CompletableFuture<A> wrapped) {
         return new Eventually<>(wrapped);
+    }
+
+    public static <A> Eventually<A> wrapAttempt(CompletableFuture<Attempt<A>> wrapped) {
+        return wrap(wrapped.thenCompose(att ->
+                att.fold(
+                        t -> {
+                            CompletableFuture<A> tfut = new CompletableFuture<>();
+                            tfut.completeExceptionally(t);
+                            return tfut;
+                        },
+                        CompletableFuture::completedFuture)));
     }
 
     public static <A> Eventually<A> callback(Effect1<Effect1<A>> asynctask) {
@@ -58,6 +70,10 @@ public class Eventually<A> {
         return new Eventually<>(CompletableFuture.completedFuture(value));
     }
 
+    public static <A> Eventually<A> value(Attempt<A> value) {
+        return new Eventually<>(value.toCompletedFuture());
+    }
+
     public static <A> Eventually<A> never() {
         return new Eventually<>(new CompletableFuture<>());
     }
@@ -75,12 +91,13 @@ public class Eventually<A> {
 
     public <B> Eventually<B> bind(F<A, Eventually<B>> f) {
         return wrap(wrapped.thenCompose(a ->
-          f.f(a).wrapped));
+                f.f(a).wrapped));
     }
 
     public Eventually<A> or(Eventually<A> other) {
         return Eventually.firstOf(this, other);
     }
+
 
     public <B> Eventually<P2<A, B>> and(Eventually<B> other) {
         return Eventually.join(this, other);
@@ -108,11 +125,11 @@ public class Eventually<A> {
 
     public <B> Eventually<B> handle(F<Throwable, B> onFail, F<A, B> onSuccess) {
         return wrap(
-          wrapped
-            .handle((aOrNull, throwableOrNull) -> {
-                Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
-                return result.fold(onFail, onSuccess);
-            }));
+                wrapped
+                        .handle((aOrNull, throwableOrNull) -> {
+                            Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
+                            return result.fold(onFail, onSuccess);
+                        }));
     }
 
     public Attempt<A> await(Duration duration) {
