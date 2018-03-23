@@ -33,8 +33,13 @@ public class Plan<A> {
         this.ops = ops;
     }
 
-    //Create a new plan, containing the operations
-    private static <B> Plan<B> plan(Op<Unit, B> ops) {
+    /**
+     * Creates a new plan with the provided operations
+     * @param ops the operations the plan contains
+     * @param <B> the type of the value the operation outputs
+     * @return a new plan
+     */
+    public static <B> Plan<B> plan(Op<Unit, B> ops) {
         return new Plan<>(ops);
     }
 

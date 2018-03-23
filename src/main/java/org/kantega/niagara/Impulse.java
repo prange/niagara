@@ -2,6 +2,9 @@ package org.kantega.niagara;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Represents a untyped signal
+ */
 public class Impulse {
 
     final CompletableFuture<Boolean> wrapped;

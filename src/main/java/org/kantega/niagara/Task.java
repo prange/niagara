@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
- * The task represents a computation that can be run in an aribitrary thread. A Task object is pure, that is immutable and side effetct
+ * The task represents a computation that can be run in an aribitrary thread. A Task object is pure - that is immutable and sideeffect
  * free until it is executed. When it is executed, any effects will be run. Tasks that are bound will run in order. Tasks that are joined by and() will
  * be run in parallell if possible. Execution of the Task is deferred to the Strategy that is provided to the task when it is executed.
  * When no Strategy is provided, it will use its defaultStrategy. The default strategy is configurable through the public static variable.

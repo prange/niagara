@@ -5,6 +5,11 @@ import fj.F2;
 import fj.P;
 import fj.P2;
 
+/**
+ * The interface of a mealy machine.
+ * @param <A> The type of the input
+ * @param <B> The type of the result
+ */
 public interface Mealy<A, B> {
 
     Transition<A, B> apply(A a);

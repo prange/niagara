@@ -12,13 +12,13 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
- * A computation that eventually yields an A. The equvalent as a Future or Promise.
+ * A computation that eventually yields an A. The equvalent of a Future or Promise.
  * <p>
- * This is literally just a wrapper around a java.util.CompletionStage to align its name
+ * This is literally just a wrapper around a java.util.CompletableFuture to align its name
  * to the eventdriven domain, and to provide a more sane api. (The api of CompletionStage
  * is rich, but has really waird naming making it hard to understand and distinguish between the methods)
  *
- * @param <A>
+ * @param <A> The type of the eventual result
  */
 public class Eventually<A> {
 

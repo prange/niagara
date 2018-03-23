@@ -2,6 +2,11 @@ package org.kantega.niagara;
 
 import java.util.function.Function;
 
+/**
+ * Transformation of a stream
+ * @param <I>
+ * @param <O>
+ */
 public interface Pipe<I, O> extends Function<Plan<I>, Plan<O>> {
 
     Plan<O> apply(Plan<I> input);

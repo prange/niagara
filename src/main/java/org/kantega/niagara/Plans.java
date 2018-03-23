@@ -9,6 +9,9 @@ import java.util.Arrays;
 import java.util.Queue;
 import java.util.function.Supplier;
 
+/**
+ * A selection of starting points for plans
+ */
 public class Plans {
 
     public static <A> Plan<A> emit(A... vals) {
