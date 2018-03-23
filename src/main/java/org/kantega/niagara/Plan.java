@@ -6,8 +6,12 @@ import fj.Unit;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.op.*;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class Plan<A> {
 
@@ -18,10 +22,6 @@ public class Plan<A> {
         this.ops = ops;
     }
 
-    public Block<Unit> build(Scope scope, Block<A> terminator) {
-        P2<Scope, Block<Unit>> block = ops.build(scope, terminator);
-        return block._1().build(block._2());
-    }
 
     public static <B> Plan<B> plan(Op<Unit, B> ops) {
         return new Plan<>(ops);
@@ -70,9 +70,30 @@ public class Plan<A> {
         return append(new TakeOp<>(max));
     }
 
-    public void run() {
-        build(Scope.root(), (a) -> {
+    public <S, B> Plan<P2<S, B>> zipMapWithState(S initState, BiFunction<S, A, P2<S, B>> f) {
+        return append(new ZipWithStateOp<>(initState, f));
+    }
+
+    public Plan<P2<Long, A>> zipWithIndex() {
+        return zipMapWithState(0L, (count, a) -> P.p(count + 1, a));
+    }
+
+    public Block<Unit> build(Scope scope, Block<A> terminator) {
+        P2<Scope, Block<Unit>> block = ops.build(scope, terminator);
+        return block._1().build(block._2());
+    }
+
+    public Runnable build() {
+        return () -> build(Scope.root(), (a) -> {
         }).run(Unit.unit());
     }
 
+
+    public <S> Supplier<S> buildFold(S initState, BiFunction<S, A, S> f) {
+        return () -> {
+            AtomicReference<S> state = new AtomicReference<>(initState);
+            build(Scope.root(), (a) -> state.updateAndGet(s -> f.apply(s, a))).run(Unit.unit());
+            return state.get();
+        };
+    }
 }
