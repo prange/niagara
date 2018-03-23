@@ -1,4 +1,4 @@
-package org.kantega.niagara.concurrent;
+package org.kantega.niagara.thread;
 
 import java.util.concurrent.locks.LockSupport;
 

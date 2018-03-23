@@ -5,7 +5,7 @@ import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.PullRepeatBlock;
-import org.kantega.niagara.concurrent.WaitStrategy;
+import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
 import java.util.function.Supplier;

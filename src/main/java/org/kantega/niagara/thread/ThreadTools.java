@@ -1,4 +1,4 @@
-package org.kantega.niagara.concurrent;
+package org.kantega.niagara.thread;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;

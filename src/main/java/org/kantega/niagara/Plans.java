@@ -1,6 +1,6 @@
 package org.kantega.niagara;
 
-import org.kantega.niagara.concurrent.WaitStrategy;
+import org.kantega.niagara.thread.WaitStrategy;
 import org.kantega.niagara.op.IterableOp;
 import org.kantega.niagara.op.PollOp;
 import org.kantega.niagara.op.PullRepeatOp;

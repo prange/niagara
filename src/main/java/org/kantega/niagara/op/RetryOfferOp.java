@@ -4,7 +4,7 @@ import fj.P;
 import fj.P2;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.OfferQueueRetryBlock;
-import org.kantega.niagara.concurrent.WaitStrategy;
+import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
 

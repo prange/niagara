@@ -1,7 +1,7 @@
 package org.kantega.niagara.blocks;
 
 import fj.Unit;
-import org.kantega.niagara.concurrent.WaitStrategy;
+import org.kantega.niagara.thread.WaitStrategy;
 import org.kantega.niagara.op.ScopeFlag;
 
 import java.util.Queue;
