@@ -2,37 +2,6 @@
 Lighweight, single threaded, really fast, perfect for EventDriven applications.
 
 
-Okay, but does this not already exist?
-
-#### java.util.Stream
-Pretty fast, no dependency, parallell processing support and even resource cleanup, albeit
-a bit clumsy. (Ever tries to close a java.util.Stream from the producer side, to make sure
-cleanup is run on the consumer side?
-
-#### reactive-streams (rxjava, akka-streams etc.)
-Reactive streams is an API this is beeng adopted by the java sdk as the streaming data api.
-Its abstraction are about `Observables` that produce values  and `Observers` that can observe them.
-A popular abstraction which is easy to understand. It lacks somewhat in resource cleanup, and
-and support for resourcelimitation is only thorugh backpressure which is handles a bit clumsily.
-There is also plenty room for error when using the api, leading to illegal or useless states.
-Rxjava is a popular implementation for java, Akka-streams is another one.
-
-#### fs2
-This is my favourite library, but it has a couple of drawbacks. It just available for scala, and
-is hogs resources. The basic api is beatiful, and they can make strong guarantess that all
-resoruces are cleaned up in the correct order. Its is modeled as a state machine, so its "impossible"
-to put the stream in an illegal state. This is my got for medium length streams, for example
-processing large files, because just uses the minimum rquired resources. But since it is a state-
-machine there is a high object churn.
-
-
-#### Kembe
-The predecessor of this project. It was in turn inspired by _kefir.js_. A very lightweight
-streaming implementation for js. Kembe was thin, but lacked some resource control and coordination, but it 
-yielded very little overhead.
-
-Lets see if we can combine the knowledge from these libs to make something that strikes
-the - or, at least our - sweetspot regarding our requirement a little better.
 
 
 ## What does "Event Driven" mean anyway?
@@ -104,6 +73,31 @@ public class Example1 {
 
 }
 ```
+
+
+Okay, but does this not already exist?
+
+#### java.util.Stream
+Pretty fast, no dependency, parallell processing support and even resource cleanup, albeit
+a bit clumsy. (Ever tries to close a java.util.Stream from the producer side, to make sure
+cleanup is run on the consumer side?
+
+#### reactive-streams (rxjava, akka-streams etc.)
+Reactive streams is an API this is beeng adopted by the java sdk as the streaming data api.
+Its abstraction are about `Observables` that produce values  and `Observers` that can observe them.
+A popular abstraction which is easy to understand. It lacks somewhat in resource cleanup, and
+and support for resourcelimitation is only thorugh backpressure which is handles a bit clumsily.
+There is also plenty room for error when using the api, leading to illegal or useless states.
+Rxjava is a popular implementation for java, Akka-streams is another one.
+
+#### fs2
+This is my favourite library, but it has a couple of drawbacks. It just available for scala, and
+is not as performant as i would like. The basic api is beautiful, and they can make strong guarantess that all
+resoruces are cleaned up in the correct order. Its is modeled as a state machine, so its "impossible"
+to put the stream in an illegal state. This is my got for medium length streams, for example
+processing large files, because just uses the minimum rquired resources. But since it is a state-
+machine there is a high object churn. FS2 has been a huge inspiration for Niagara.
+
 
 
 
