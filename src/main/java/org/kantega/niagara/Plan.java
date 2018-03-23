@@ -1,5 +1,6 @@
 package org.kantega.niagara;
 
+import fj.P;
 import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.blocks.Block;
@@ -59,6 +60,14 @@ public class Plan<A> {
 
     public Plan<A> haltOn(Impulse impulse) {
         return append(new HaltOnOp<>(impulse));
+    }
+
+    public Plan<A> skip(long count) {
+        return append(new SkipOp<>(count));
+    }
+
+    public Plan<A> take(long max) {
+        return append(new TakeOp<>(max));
     }
 
     public void run() {
