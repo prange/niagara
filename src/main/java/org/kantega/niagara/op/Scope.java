@@ -1,6 +1,7 @@
 package org.kantega.niagara.op;
 
 import fj.Unit;
+import org.kantega.niagara.Impulse;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.LoopBlock;
 
@@ -18,6 +19,10 @@ public interface Scope {
     }
 
     ScopeFlag getFlag();
+
+    default Scope haltOn(Impulse impulse) {
+        return new HaltOnScope(this, impulse);
+    }
 
     default Scope child() {
         return new ChildScope(this);
@@ -66,6 +71,28 @@ public interface Scope {
             return flag;
         }
 
+    }
 
+    class HaltOnScope implements Scope {
+
+        final Scope wrapped;
+        final Impulse impulse;
+
+        public HaltOnScope(Scope wrapped, Impulse impulse) {
+            this.wrapped = wrapped;
+            this.impulse = impulse;
+        }
+
+        @Override
+        public Optional<Scope> parent() {
+            return wrapped.parent();
+        }
+
+        @Override
+        public ScopeFlag getFlag() {
+            ScopeFlag flag = wrapped.getFlag();
+            impulse.onImpulse(flag::halt);
+            return flag;
+        }
     }
 }

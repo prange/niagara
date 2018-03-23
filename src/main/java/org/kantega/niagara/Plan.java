@@ -57,8 +57,13 @@ public class Plan<A> {
         return append(new RepeatOp<>(this));
     }
 
-    public void run(){
-        build(Scope.root(),(a)->{}).run(Unit.unit());
+    public Plan<A> haltOn(Impulse impulse) {
+        return append(new HaltOnOp<>(impulse));
+    }
+
+    public void run() {
+        build(Scope.root(), (a) -> {
+        }).run(Unit.unit());
     }
 
 }

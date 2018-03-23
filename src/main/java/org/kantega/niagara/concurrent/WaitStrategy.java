@@ -6,6 +6,13 @@ public interface WaitStrategy {
 
     void idle();
 
+    /**
+     * Resets the state of the waitstrategy if applicable
+     */
+    default void reset(){
+
+    }
+
     WaitStrategy hog = ()->{};
     WaitStrategy yieldStrategy = Thread::yield;
     WaitStrategy busySpinStrategy = ThreadTools::onSpinWait;
