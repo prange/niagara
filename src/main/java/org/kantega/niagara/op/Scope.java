@@ -1,31 +1,22 @@
 package org.kantega.niagara.op;
 
-import fj.Unit;
-import org.kantega.niagara.Impulse;
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.LoopBlock;
-
-import java.util.Optional;
+import java.util.function.Function;
 
 public interface Scope {
 
-    Optional<Scope> parent();
+    void reset();
 
+    boolean keepRunning();
 
-    default Block<Unit> build(Block<Unit> scoped) {
-        return parent()
-          .map(parent -> parent.build(new LoopBlock(getFlag(), scoped)))
-          .orElse(scoped);
-    }
+    void halt();
 
-    ScopeFlag getFlag();
-
-    default Scope haltOn(Impulse impulse) {
-        return new HaltOnScope(this, impulse);
-    }
 
     default Scope child() {
         return new ChildScope(this);
+    }
+
+    default <A> A child(Function<Scope,A> childHandler){
+        return childHandler.apply(child());
     }
 
     static Scope root() {
@@ -35,64 +26,52 @@ public interface Scope {
     class ChildScope implements Scope {
 
         final Scope parent;
-        final ScopeFlag flag;
+        volatile boolean running = true;
 
         public ChildScope(Scope parent) {
             this.parent = parent;
-            flag = ScopeFlag.child(parent.getFlag());
         }
 
         @Override
-        public Optional<Scope> parent() {
-            return Optional.of(parent);
+        public boolean keepRunning() {
+            return running && parent.keepRunning();
         }
-
 
         @Override
-        public ScopeFlag getFlag() {
-            return flag;
+        public void halt() {
+            running = false;
         }
+
+        @Override
+        public void reset() {
+            running = true;
+        }
+
+
     }
 
     class RootScope implements Scope {
-        final ScopeFlag flag;
+        volatile boolean running = true;
 
         public RootScope() {
-            flag = ScopeFlag.root();
+
         }
 
         @Override
-        public Optional<Scope> parent() {
-            return Optional.empty();
+        public boolean keepRunning() {
+            return running;
         }
 
         @Override
-        public ScopeFlag getFlag() {
-            return flag;
+        public void halt() {
+            running = false;
+        }
+
+        @Override
+        public void reset() {
+            running = true;
         }
 
     }
 
-    class HaltOnScope implements Scope {
-
-        final Scope wrapped;
-        final Impulse impulse;
-
-        public HaltOnScope(Scope wrapped, Impulse impulse) {
-            this.wrapped = wrapped;
-            this.impulse = impulse;
-        }
-
-        @Override
-        public Optional<Scope> parent() {
-            return wrapped.parent();
-        }
-
-        @Override
-        public ScopeFlag getFlag() {
-            ScopeFlag flag = wrapped.getFlag();
-            impulse.onImpulse(flag::halt);
-            return flag;
-        }
-    }
 }

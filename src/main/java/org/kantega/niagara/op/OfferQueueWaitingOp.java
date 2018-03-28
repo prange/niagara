@@ -6,19 +6,18 @@ import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
 
-public class RetryOfferOp<A> implements Op<A, A> {
+public class OfferQueueWaitingOp<A> implements Op<A, A> {
 
     final Queue<A> queue;
-    final WaitStrategy strategy;
+    final WaitStrategy waitStrategy;
 
-    public RetryOfferOp(Queue<A> queue, WaitStrategy strategy) {
+    public OfferQueueWaitingOp(Queue<A> queue, WaitStrategy waitStrategy) {
         this.queue = queue;
-        this.strategy = strategy;
+        this.waitStrategy = waitStrategy;
     }
-
 
     @Override
     public Block<A> build(Scope scope, Block<A> block) {
-        return new OfferQueueRetryBlock<>(queue, strategy, scope, block);
+        return new OfferQueueRetryBlock<>(queue, waitStrategy, scope, block);
     }
 }

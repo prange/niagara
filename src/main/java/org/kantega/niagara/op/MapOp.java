@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.MapBlock;
 
@@ -24,7 +22,7 @@ public class MapOp<A, B> implements Op<A, B> {
     }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<B> block) {
-        return P.p(scope, new MapBlock<>(function, block));
+    public Block<A> build(Scope scope, Block<B> block) {
+        return new MapBlock<>(function, block);
     }
 }

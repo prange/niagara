@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.TakeWhileEndBlock;
 
@@ -17,12 +15,11 @@ public class TakeWhileOp<A> implements Op<A, A> {
 
     @Override
     public <C> Op<A, C> fuse(Op<A, C> other) {
-        return new ComposedOp<>(this, other);
+        return new AndThenOp<>(this, other);
     }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<A> block) {
-        Scope child = scope.child();
-        return P.p(child, new TakeWhileEndBlock<>(child.getFlag(), pred, block));
+    public  Block<A> build(Scope scope, Block<A> block) {
+        return new TakeWhileEndBlock<>(scope, pred, block);
     }
 }

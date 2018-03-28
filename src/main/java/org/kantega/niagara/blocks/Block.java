@@ -2,6 +2,6 @@ package org.kantega.niagara.blocks;
 
 public interface Block<A> {
 
-    void run( A input);
+    void run(A input);
 
 }

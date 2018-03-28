@@ -18,7 +18,7 @@ public class ZipWithStateOp<S,A,B> implements Op<A,P2<S,B>> {
     }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<P2<S,B>> block) {
-        return P.p(scope,new ZipWithStateBlock<>(initState,zipFunction,block));
+    public Block<A> build(Scope scope, Block<P2<S,B>> block) {
+        return new ZipWithStateBlock<>(initState,zipFunction,block);
     }
 }

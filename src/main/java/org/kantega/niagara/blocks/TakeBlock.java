@@ -1,15 +1,15 @@
 package org.kantega.niagara.blocks;
 
-import org.kantega.niagara.op.ScopeFlag;
+import org.kantega.niagara.op.Scope;
 
 public class TakeBlock<A> implements Block<A> {
 
-    final ScopeFlag flag;
+    final Scope flag;
     final long max;
     final Block<A> next;
     volatile long counter;
 
-    public TakeBlock(ScopeFlag flag, long max, Block<A> next) {
+    public TakeBlock(Scope flag, long max, Block<A> next) {
         this.flag = flag;
         this.max = max;
         this.next = next;

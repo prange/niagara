@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.PullRepeatBlock;
@@ -24,7 +22,7 @@ public class PullRepeatOp<A> implements Op<Unit, A> {
 
 
     @Override
-    public P2<Scope, Block<Unit>> build(Scope scope, Block<A> block) {
-        return P.p(scope, new PullRepeatBlock<>(scope.getFlag(), supplier, waitStrategy.get(), idleStrategy.get(), block));
+    public Block<Unit> build(Scope scope, Block<A> block) {
+        return new PullRepeatBlock<>(scope, supplier, waitStrategy.get(), idleStrategy.get(), block);
     }
 }

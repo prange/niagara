@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.IterableBlock;
@@ -15,7 +13,7 @@ public class IterableOp<A> implements Op<Unit, A> {
     }
 
     @Override
-    public P2<Scope, Block<Unit>> build(Scope scope, Block<A> block) {
-        return P.p(scope, new IterableBlock<>(scope.getFlag(), source, block));
+    public Block<Unit> build(Scope scope, Block<A> block) {
+        return new IterableBlock<>(scope, source, block);
     }
 }

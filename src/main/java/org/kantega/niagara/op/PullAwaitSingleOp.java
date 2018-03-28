@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.PullAwaitSingleBlock;
@@ -21,7 +19,7 @@ public class PullAwaitSingleOp<A> implements Op<Unit, A> {
     }
 
     @Override
-    public P2<Scope, Block<Unit>> build(Scope scope, Block<A> block) {
-        return P.p(scope, new PullAwaitSingleBlock<>(queue, waitStrategy.get(), scope.getFlag(), block));
+    public Block<Unit> build(Scope scope, Block<A> block) {
+        return new PullAwaitSingleBlock<>(queue, waitStrategy.get(), scope, block);
     }
 }

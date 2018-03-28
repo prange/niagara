@@ -12,20 +12,19 @@ public class Example1 {
     public static void main(String[] args) {
 
         Plan<Integer> strings1 =
-          Plans.emit(1, 2, 3);
+          Plans.emit(1, 2, 3,4,5,6);
 
         AtomicInteger counter = new AtomicInteger();
 
 
         strings1
           .map(n -> n + 1)
-          .eval(Example1::println)
           .repeat()
-          .takeWhile(n -> n > 5)
-          // .repeat()
-          .flatMap(n -> Arrays.asList(n, n, n, n, n))
+          .takeWhile(n -> n < 5)
+          .repeat()
+          .flatMap(n -> Arrays.asList(n, n))
+          .takeWhile(n -> counter.incrementAndGet() < 40)
           .eval(Example1::println)
-          .takeWhile(n -> counter.incrementAndGet() > 20)
           .build()
           .run();
     }

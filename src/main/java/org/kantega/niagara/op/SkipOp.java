@@ -1,7 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.blocks.SkipBlock;
 
@@ -14,7 +12,7 @@ public class SkipOp<A> implements Op<A, A> {
     }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<A> block) {
-        return P.p(scope, new SkipBlock<>(skip, block));
+    public Block<A> build(Scope scope, Block<A> block) {
+        return new SkipBlock<>(skip, block);
     }
 }

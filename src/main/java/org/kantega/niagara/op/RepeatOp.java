@@ -1,26 +1,20 @@
 package org.kantega.niagara.op;
 
-import fj.P;
-import fj.P2;
-import org.kantega.niagara.Plan;
+import fj.Unit;
 import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.RepeatEndBlock;
+import org.kantega.niagara.blocks.RepeatBlock;
 
-public class RepeatOp<A> implements Op<A, A> {
+public class RepeatOp<A> implements Op<Unit, A> {
 
-    final Plan<A> repeat;
+    final Op<Unit, A> repeated;
 
-    public RepeatOp(Plan<A> repeat) {
-        this.repeat = repeat;
+    public RepeatOp(Op<Unit, A> repeated) {
+        this.repeated = repeated;
     }
 
-    @Override
-    public <C> Op<A, C> fuse(Op<A, C> other) {
-        return new ComposedOp<>(this, other);
-    }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<A> block) {
-        return P.p(scope.child(), new RepeatEndBlock<>(repeat, block));
+    public Block<Unit> build(Scope scope, Block<A> block) {
+        return scope.child(child -> new RepeatBlock(scope, child, repeated.build(child, block)));
     }
 }

@@ -14,7 +14,7 @@ public class TakeOp<A> implements Op<A, A> {
     }
 
     @Override
-    public P2<Scope, Block<A>> build(Scope scope, Block<A> block) {
-        return P.p(scope, new TakeBlock<>(scope.getFlag(), count, block));
+    public Block<A> build(Scope scope, Block<A> block) {
+        return new TakeBlock<>(scope, count, block);
     }
 }

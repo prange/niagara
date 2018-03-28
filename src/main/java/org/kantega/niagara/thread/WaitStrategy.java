@@ -7,6 +7,9 @@ import java.util.concurrent.locks.LockSupport;
  */
 public interface WaitStrategy {
 
+    /**
+     * Invokes the waitstrategy
+     */
     void idle();
 
     /**
