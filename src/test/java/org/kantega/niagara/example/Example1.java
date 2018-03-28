@@ -11,13 +11,10 @@ public class Example1 {
 
     public static void main(String[] args) {
 
-        Plan<Integer> strings1 =
-          Plans.emit(1, 2, 3,4,5,6);
-
         AtomicInteger counter = new AtomicInteger();
 
 
-        strings1
+        Plans.emit(1, 2, 3,4,5,6)
           .map(n -> n + 1)
           .repeat()
           .takeWhile(n -> n < 5)

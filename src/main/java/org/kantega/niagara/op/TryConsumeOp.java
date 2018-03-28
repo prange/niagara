@@ -1,6 +1,5 @@
 package org.kantega.niagara.op;
 
-import fj.function.Try0;
 import fj.function.TryEffect1;
 import org.kantega.niagara.blocks.Block;
 
