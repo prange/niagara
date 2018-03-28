@@ -10,12 +10,13 @@ public interface Scope {
 
     void halt();
 
+    void failure(Throwable t);
 
     default Scope child() {
         return new ChildScope(this);
     }
 
-    default <A> A child(Function<Scope,A> childHandler){
+    default <A> A child(Function<Scope, A> childHandler) {
         return childHandler.apply(child());
     }
 
@@ -43,6 +44,11 @@ public interface Scope {
         }
 
         @Override
+        public void failure(Throwable t) {
+            parent.failure(t);
+        }
+
+        @Override
         public void reset() {
             running = true;
         }
@@ -65,6 +71,12 @@ public interface Scope {
         @Override
         public void halt() {
             running = false;
+        }
+
+        @Override
+        public void failure(Throwable t) {
+            halt();
+            t.printStackTrace();
         }
 
         @Override

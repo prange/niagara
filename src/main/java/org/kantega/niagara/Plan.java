@@ -3,16 +3,15 @@ package org.kantega.niagara;
 import fj.P;
 import fj.P2;
 import fj.Unit;
+import fj.function.Try0;
+import fj.function.TryEffect1;
 import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.op.*;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 /**
  * A Plan is a description of the streaming steps to perform. It is "compiled" into a runnable block by build. Nothing is done
@@ -180,22 +179,28 @@ public class Plan<A> {
     }
 
 
+    public Plan<A> to(TryEffect1<A, Exception> consumer) {
+        return append(new TryConsumeOp<>(consumer));
+    }
+
     /**
      * Offers messages to the provided queue, dropping them if the queue is full
+     *
      * @param queue
      * @return
      */
-    public Plan<A> offer(Queue<A> queue){
+    public Plan<A> offer(Queue<A> queue) {
         return append(new OfferQueueDroppingOp<>(queue));
     }
 
     /**
      * Offers messages to the provided queue, using the supplied waitstrategy to wait for the queue to free up.
+     *
      * @param queue
      * @return
      */
-    public Plan<A> offerWait(Queue<A> queue, WaitStrategy waitStrategy){
-        return append(new OfferQueueWaitingOp<>(queue,waitStrategy));
+    public Plan<A> offerWait(Queue<A> queue, WaitStrategy waitStrategy) {
+        return append(new OfferQueueWaitingOp<>(queue, waitStrategy));
     }
 
     /**
