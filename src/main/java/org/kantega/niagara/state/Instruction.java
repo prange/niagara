@@ -65,8 +65,8 @@ public interface Instruction<O, R> {
         return this;
     }
 
-    static <O, R> Instruction<O, Unit> join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
-        return new Join<O>(left, right);
+    static <O> Instruction<O, Source<O>> join(Instruction<O, ?> left, Instruction<O, ?> right) {
+        return new Join<>(left, right);
     }
 
 
@@ -102,15 +102,19 @@ public interface Instruction<O, R> {
     }
 
 
-    class Join<O> implements Instruction<O, Unit> {
-        final Instruction<O, Unit> first;
-        final Instruction<O, Unit> second;
+    class Join<O> implements Instruction<O, Source<O>> {
+        final Instruction<O, ?> first;
+        final Instruction<O, ?> second;
 
-        public Join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
+        public Join(Instruction<O, ?> left, Instruction<O, ?> right) {
             this.first = left;
             this.second = right;
         }
 
+        @Override
+        public Stream<O, Source<O>> build(Scope<O> scope) {
+            return null;
+        }
     }
 
 

@@ -5,7 +5,7 @@ import org.kantega.niagara.sink.DropWhileSink;
 
 import java.util.function.Predicate;
 
-public class DropWhileOp<A> implements StageOp<A, A> {
+public class DropWhileOp<A> implements KeepTypeOp<A> {
 
     final Predicate<A> pred;
 

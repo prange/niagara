@@ -50,7 +50,7 @@ public class Plan<A> {
      * @return a new plan with the operation appended
      */
     protected <B> Plan<B> append(StageOp<A, B> op) {
-        return plan(Instruction.transform(scope,op));
+        return plan(Instruction.transform(scope, op));
     }
 
 
@@ -61,7 +61,7 @@ public class Plan<A> {
      * @return A new plan that first executes this plan, and then executes the next plan.
      */
     public Plan<A> append(Supplier<Plan<A>> next) {
-        return plan(scope.append(()->next.get().scope));
+        return plan(scope.append(() -> next.get().scope));
     }
 
     /**
@@ -73,7 +73,7 @@ public class Plan<A> {
      * @return
      */
     public Plan<A> join(Plan<A> other) {
-        return plan(Instruction.join(scope,other.scope));
+        return plan(Instruction.join(scope, other.scope));
     }
 
     /**
@@ -162,7 +162,7 @@ public class Plan<A> {
      * @return a new plan
      */
     public Plan<A> skip(long count) {
-        return append(new SkipOp<>(count));
+        return append(new DropWhileStateOp<>(0L, (sum, msg) -> sum + 1, sum -> sum <= count));
     }
 
     /**
@@ -177,9 +177,10 @@ public class Plan<A> {
 
     /**
      * Accumulates over the values, emitting the accumulated value for each step.
+     *
      * @param initState The initial state
-     * @param function The acumulation function
-     * @param <S> The type of the state
+     * @param function  The acumulation function
+     * @param <S>       The type of the state
      * @return new new plane with the accumultaion appended to the end.
      */
     public <S> Plan<S> accumulate(S initState, BiFunction<S, A, S> function) {
@@ -210,6 +211,7 @@ public class Plan<A> {
 
     /**
      * Emits values to the provided consumer. This operation should not block, because that will block this plan.
+     *
      * @param consumer
      * @return
      */
