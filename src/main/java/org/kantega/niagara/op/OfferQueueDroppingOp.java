@@ -1,11 +1,11 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.OfferQueueDroppingBlock;
+import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.ConsumerSink;
 
 import java.util.Queue;
 
-public class OfferQueueDroppingOp<A> implements Op<A, A> {
+public class OfferQueueDroppingOp<A> implements StageOp<A, A> {
 
     final Queue<A> queue;
 
@@ -13,8 +13,10 @@ public class OfferQueueDroppingOp<A> implements Op<A, A> {
         this.queue = queue;
     }
 
+
     @Override
-    public Block<A> build(Scope scope, Block<A> block) {
-        return new OfferQueueDroppingBlock<>(queue, block);
+    public Source<A> apply0(Source<A> input) {
+        return (emit, done) ->
+          input.build(new ConsumerSink<>(queue::offer, emit), done.comap(this));
     }
 }

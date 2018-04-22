@@ -6,7 +6,6 @@ import fj.P2;
 import fj.data.List;
 import fj.function.Effect1;
 
-import javax.swing.text.html.Option;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
@@ -39,15 +38,15 @@ public class Eventually<A> {
         return new Eventually<>(wrapped);
     }
 
-    public static <A> Eventually<A> wrapAttempt(CompletableFuture<Attempt<A>> wrapped) {
+    public static <A> Eventually<A> wrapAttempt(CompletableFuture<Try<A>> wrapped) {
         return wrap(wrapped.thenCompose(att ->
-                att.fold(
-                        t -> {
-                            CompletableFuture<A> tfut = new CompletableFuture<>();
-                            tfut.completeExceptionally(t);
-                            return tfut;
-                        },
-                        CompletableFuture::completedFuture)));
+          att.fold(
+            t -> {
+                CompletableFuture<A> tfut = new CompletableFuture<>();
+                tfut.completeExceptionally(t);
+                return tfut;
+            },
+            CompletableFuture::completedFuture)));
     }
 
     public static <A> Eventually<A> callback(Effect1<Effect1<A>> asynctask) {
@@ -70,8 +69,12 @@ public class Eventually<A> {
         return new Eventually<>(CompletableFuture.completedFuture(value));
     }
 
-    public static <A> Eventually<A> value(Attempt<A> value) {
+    public static <A> Eventually<A> value(Try<A> value) {
         return new Eventually<>(value.toCompletedFuture());
+    }
+
+    public static <A> Eventually<A> call(Supplier<A> supplier) {
+        return value(supplier.get());
     }
 
     public static <A> Eventually<A> never() {
@@ -91,7 +94,7 @@ public class Eventually<A> {
 
     public <B> Eventually<B> bind(F<A, Eventually<B>> f) {
         return wrap(wrapped.thenCompose(a ->
-                f.f(a).wrapped));
+          f.f(a).wrapped));
     }
 
     public Eventually<A> or(Eventually<A> other) {
@@ -112,9 +115,9 @@ public class Eventually<A> {
     }
 
 
-    public void onComplete(Effect1<Attempt<A>> completeHandler) {
+    public void onComplete(Effect1<Try<A>> completeHandler) {
         wrapped.whenComplete((aOrNull, throwableOrNull) -> {
-            Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
+            Try<A> result = fj.data.Option.fromNull(aOrNull).map(Try::value).orSome(Try.fail(throwableOrNull));
             completeHandler.f(result);
         });
     }
@@ -125,18 +128,18 @@ public class Eventually<A> {
 
     public <B> Eventually<B> handle(F<Throwable, B> onFail, F<A, B> onSuccess) {
         return wrap(
-                wrapped
-                        .handle((aOrNull, throwableOrNull) -> {
-                            Attempt<A> result = fj.data.Option.fromNull(aOrNull).map(Attempt::value).orSome(Attempt.fail(throwableOrNull));
-                            return result.fold(onFail, onSuccess);
-                        }));
+          wrapped
+            .handle((aOrNull, throwableOrNull) -> {
+                Try<A> result = fj.data.Option.fromNull(aOrNull).map(Try::value).orSome(Try.fail(throwableOrNull));
+                return result.fold(onFail, onSuccess);
+            }));
     }
 
-    public Attempt<A> await(Duration duration) {
+    public Try<A> await(Duration duration) {
         try {
-            return Attempt.value(wrapped.toCompletableFuture().get(duration.toMillis(), TimeUnit.MILLISECONDS));
+            return Try.value(wrapped.toCompletableFuture().get(duration.toMillis(), TimeUnit.MILLISECONDS));
         } catch (Exception e) {
-            return Attempt.fail(e);
+            return Try.fail(e);
         }
     }
 

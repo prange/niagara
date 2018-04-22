@@ -6,7 +6,7 @@ import org.kantega.niagara.blocks.PollBlock;
 
 import java.util.Queue;
 
-public class PollOp<A> implements Op<Unit, A> {
+public class PollOp<A> implements StageOp<Unit, A> {
 
     final Queue<A> queue;
 

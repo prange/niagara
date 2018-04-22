@@ -2,23 +2,20 @@ package org.kantega.niagara;
 
 import fj.P;
 import fj.P2;
-import fj.Unit;
-import fj.function.Try0;
-import fj.function.TryEffect1;
-import org.kantega.niagara.blocks.Block;
 import org.kantega.niagara.op.*;
+import org.kantega.niagara.state.Instruction;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 
 /**
  * A Plan is a description of the streaming steps to perform. It is "compiled" into a runnable block by build. Nothing is done
- * before the block is actually run. When the stream ends no traces of the stream exist. The plan has to be compiled and run again if
+ * before the block is actually run. When the stream ends no traces of the stream exist other than the performed sideeffects.
+ * The plan has to be compiled and run again if
  * the stream is to be rerun.
  * <p>
- * To extend the stream api you can subtype Plan and add methods that use append to add operational steps to the stream.
+ * To extend the stream api you can subtype Plan and add methods that use append to add operational stages to the source.
  * <p>
  * A plan is immutable. Every call to build creates a new and separate stream. Take caution when pulling data from queues or other
  * data from outside the stream, as they are mutable and change between and during streams.
@@ -28,22 +25,21 @@ import java.util.function.*;
  */
 public class Plan<A> {
 
+    private final Instruction<A, Source<A>> scope;
 
-    private final Op<Unit, A> ops;
-
-    private Plan(Op<Unit, A> ops) {
-        this.ops = ops;
+    private Plan(Instruction<A, Source<A>> scope) {
+        this.scope = scope;
     }
 
     /**
      * Creates a new plan with the provided operations
      *
      * @param ops the operations the plan contains
-     * @param <B> the type of the value the operation outputs
+     * @param <A> the type of the value the operation outputs
      * @return a new plan
      */
-    public static <B> Plan<B> plan(Op<Unit, B> ops) {
-        return new Plan<>(ops);
+    public static <A> Plan<A> plan(Instruction<A, Source<A>> scope) {
+        return new Plan<>(scope);
     }
 
     /**
@@ -53,8 +49,31 @@ public class Plan<A> {
      * @param <B> The last output type of the resulting stream
      * @return a new plan with the operation appended
      */
-    protected <B> Plan<B> append(Op<A, B> op) {
-        return plan(ops.fuse(op));
+    protected <B> Plan<B> append(StageOp<A, B> op) {
+        return plan(Instruction.transform(scope,op));
+    }
+
+
+    /**
+     * Append a plan to this plan. The next plan is executed when this plan halts.
+     *
+     * @param next the next plan to run
+     * @return A new plan that first executes this plan, and then executes the next plan.
+     */
+    public Plan<A> append(Supplier<Plan<A>> next) {
+        return plan(scope.append(()->next.get().scope));
+    }
+
+    /**
+     * Joins two plans, attempting to run both at the same time in the same thread. This means that the plans
+     * are interleaved, and each plan is stepped in turn. If the source of one plan is empty (for example because its input queue is empty)
+     * that plan is skipped for that step.
+     *
+     * @param other
+     * @return
+     */
+    public Plan<A> join(Plan<A> other) {
+        return plan(Instruction.join(scope,other.scope));
     }
 
     /**
@@ -71,7 +90,7 @@ public class Plan<A> {
 
     /**
      * Transforms and flattens the output of the transformation.The output is inserted into othe stream in order, and
-     * the output is handeles directly without any overhead.
+     * the output is handled directly without any overhead.
      *
      * @param f   The mapping function
      * @param <B> The type the values are mapped into
@@ -83,8 +102,8 @@ public class Plan<A> {
 
     /**
      * Transforms elements of the plans into a new stream, and binding them together.
-     * The resulting plans have are compiles and run with their own scopes, wich might cause some overhead. If this i a
-     * frequest operation consider flatMap instead for high performance applications.
+     * The resulting plans have are compiled and run with their own scopes, wich might cause some overhead. If this i a
+     * frequent operation consider flatMap instead for high performance applications.
      *
      * @param f   the mapping function
      * @param <B> the type of the output
@@ -95,7 +114,7 @@ public class Plan<A> {
     }
 
     /**
-     * Evaluates a (pissibly sideeffecting) computation in this thread, outputing the result.
+     * Evaluates a (possibly sideeffecting) computation in this thread, outputing the result.
      *
      * @param f   the evalution
      * @param <B> the result of the evaluation
@@ -123,7 +142,7 @@ public class Plan<A> {
      * @return a new plan
      */
     public Plan<A> repeat() {
-        return plan(new RepeatOp<>(ops));
+        return plan(scope.repeat());
     }
 
     /**
@@ -132,8 +151,8 @@ public class Plan<A> {
      * @param impulse The stop signal
      * @return a new plan
      */
-    public Plan<A> haltOn(Impulse impulse) {
-        return plan(new HaltOnOp<>(impulse, ops));
+    public Plan<A> haltOn(Interrupt impulse) {
+        return append(new TakeWhileOp<A>(a -> impulse.isInterrupted()));
     }
 
     /**
@@ -153,11 +172,22 @@ public class Plan<A> {
      * @return a new plan
      */
     public Plan<A> take(long max) {
-        return append(new TakeOp<>(max));
+        return append(new TakeWhileStateOp<>(max, (count, a) -> count - 1, count -> count > 0));
     }
 
     /**
-     * Zips the stream with a state that is updated and fed into the next execution of this step.
+     * Accumulates over the values, emitting the accumulated value for each step.
+     * @param initState The initial state
+     * @param function The acumulation function
+     * @param <S> The type of the state
+     * @return new new plane with the accumultaion appended to the end.
+     */
+    public <S> Plan<S> accumulate(S initState, BiFunction<S, A, S> function) {
+        return append(new MapWithStateOp<>(initState, function));
+    }
+
+    /**
+     * Zips the stream with a state that is updated and fed into the next execution of this emit.
      *
      * @param initState The initial state
      * @param f         the mapping function
@@ -166,7 +196,7 @@ public class Plan<A> {
      * @return a new plan
      */
     public <S, B> Plan<P2<S, B>> zipMapWithState(S initState, BiFunction<S, A, P2<S, B>> f) {
-        return append(new ZipWithStateOp<>(initState, f));
+        return accumulate(P.p(initState, null), (tuple, a) -> f.apply(tuple._1(), a));
     }
 
     /**
@@ -178,9 +208,13 @@ public class Plan<A> {
         return zipMapWithState(0L, (count, a) -> P.p(count + 1, a));
     }
 
-
-    public Plan<A> to(TryEffect1<A, Exception> consumer) {
-        return append(new TryConsumeOp<>(consumer));
+    /**
+     * Emits values to the provided consumer. This operation should not block, because that will block this plan.
+     * @param consumer
+     * @return
+     */
+    public Plan<A> to(Consumer<A> consumer) {
+        return append(new ConsumeOp<>(consumer));
     }
 
     /**
@@ -194,54 +228,15 @@ public class Plan<A> {
     }
 
     /**
-     * Offers messages to the provided queue, using the supplied waitstrategy to wait for the queue to free up.
+     * Offers messages to the provided queue, using the supplied waitstrategy to wait for the queue to free up. (This blocks the
+     * operation, and might cause buildups in upstream queues)
      *
-     * @param queue
-     * @return
+     * @param queue the queue to offer values to.
+     * @return a new plan with the offer operation appended.
      */
-    public Plan<A> offerWait(Queue<A> queue, WaitStrategy waitStrategy) {
+    public Plan<A> offerWait(Queue<A> queue, Supplier<WaitStrategy> waitStrategy) {
         return append(new OfferQueueWaitingOp<>(queue, waitStrategy));
     }
 
-    /**
-     * Compiles the steps in this plan into a runnable block, within the provided scope and outputting elements into the
-     * provided block.
-     *
-     * @param scope      The scope the streams runs in
-     * @param terminator The block that receives data from this stream
-     * @return a runnable block.
-     */
-    public Block<Unit> build(Scope scope, Block<A> terminator) {
-        return ops.build(scope, terminator);
-    }
 
-
-    /**
-     * Compiles the steps of this plan into a runnable block, wrapped into a runnable.
-     * Runs in the calling thread.
-     *
-     * @return
-     */
-    public Runnable build() {
-        return () -> build(Scope.root(), (a) -> {
-        }).run(Unit.unit());
-    }
-
-
-    /**
-     * Compiles this plan into a runnable block and acumulates the elements that are outputted by the last step. The stream in
-     * run when get() is called on the returned supplier.
-     *
-     * @param initState The inital state to accumulate into.
-     * @param f         the accumlator
-     * @param <S>       the type of the acumulated value
-     * @return a supplier that runs the stream when get() is called.
-     */
-    public <S> Supplier<S> buildFold(S initState, BiFunction<S, A, S> f) {
-        return () -> {
-            AtomicReference<S> state = new AtomicReference<>(initState);
-            build(Scope.root(), (a) -> state.updateAndGet(s -> f.apply(s, a))).run(Unit.unit());
-            return state.get();
-        };
-    }
 }

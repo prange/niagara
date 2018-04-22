@@ -6,7 +6,7 @@ import org.kantega.niagara.blocks.Block;
 
 import java.util.function.Function;
 
-public class BindOp<A, B> implements Op<A, B> {
+public class BindOp<A, B> implements StageOp<A, B> {
 
 
     final Function<A, Plan<B>> function;

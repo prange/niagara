@@ -1,11 +1,11 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.TakeWhileEndBlock;
+import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.TakeWhileSink;
 
 import java.util.function.Predicate;
 
-public class TakeWhileOp<A> implements Op<A, A> {
+public class TakeWhileOp<A> implements KeepTypeOp<A> {
 
     final Predicate<A> pred;
 
@@ -14,12 +14,11 @@ public class TakeWhileOp<A> implements Op<A, A> {
     }
 
     @Override
-    public <C> Op<A, C> fuse(Op<A, C> other) {
-        return new AndThenOp<>(this, other);
+    public Source<A> apply0(Source<A> input) {
+        return (emit, end) -> input.build(
+          new TakeWhileSink<>(pred, emit, end),
+          end.comap(this));
     }
 
-    @Override
-    public  Block<A> build(Scope scope, Block<A> block) {
-        return new TakeWhileEndBlock<>(scope, pred, block);
-    }
+
 }

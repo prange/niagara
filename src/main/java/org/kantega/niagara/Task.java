@@ -66,7 +66,7 @@ public interface Task<A> {
      * @return a failing Task
      */
     public static <A> Task<A> fail(Throwable t) {
-        return async(aresolver -> aresolver.f(Attempt.fail(t)));
+        return async(aresolver -> aresolver.f(Try.fail(t)));
     }
 
     /**
@@ -91,9 +91,9 @@ public interface Task<A> {
         return async(callback -> {
             try {
                 task.run();
-                callback.f(Attempt.value(Unit.unit()));
+                callback.f(Try.value(Unit.unit()));
             } catch (Exception e) {
-                callback.f(Attempt.fail(e));
+                callback.f(Try.fail(e));
             }
         });
     }
@@ -242,7 +242,7 @@ public interface Task<A> {
      * @param timeout
      * @return
      */
-    default Attempt<A> executeAndAwait(Duration timeout) {
+    default Try<A> executeAndAwait(Duration timeout) {
         return execute().await(timeout);
     }
 
@@ -274,7 +274,7 @@ public interface Task<A> {
      * Interface for tasks that are to be run asyncronusly with a callback to resolve the Async.
      */
     interface TaskBody<A> {
-        void run(Effect1<Attempt<A>> resolver);
+        void run(Effect1<Try<A>> resolver);
     }
 
 

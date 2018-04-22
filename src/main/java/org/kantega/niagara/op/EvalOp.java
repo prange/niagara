@@ -1,21 +1,24 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.Eval;
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.EvalBlock;
+import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.EvaluatingSink;
 
 import java.util.function.Function;
 
-public class EvalOp<A,B> implements Op<A,B> {
+public class EvalOp<A, B> implements StageOp<A, B> {
 
-    final Function<A,Eval<B>> function;
+    final Function<A, Eval<B>> evalFunction;
 
-    public EvalOp(Function<A, Eval<B>> function) {
-        this.function = function;
+    public EvalOp(Function<A, Eval<B>> evalFunction) {
+        this.evalFunction = evalFunction;
     }
 
+
     @Override
-    public Block<A> build(Scope scope, Block<B> block) {
-        return new EvalBlock<>(function,block);
+    public Source<B> apply0(Source<A> input) {
+        return (emit, done) -> input.build(
+          new EvaluatingSink<>(evalFunction, emit, done),
+          done.comap(this));
     }
 }

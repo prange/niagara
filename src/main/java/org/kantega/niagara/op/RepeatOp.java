@@ -1,20 +1,16 @@
 package org.kantega.niagara.op;
 
-import fj.Unit;
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.RepeatBlock;
+public class RepeatOp<A> implements Ops<A> {
 
-public class RepeatOp<A> implements Op<Unit, A> {
+    final Ops<A> repeated;
 
-    final Op<Unit, A> repeated;
-
-    public RepeatOp(Op<Unit, A> repeated) {
+    public RepeatOp(Ops<A> repeated) {
         this.repeated = repeated;
     }
 
 
     @Override
-    public Block<Unit> build(Scope scope, Block<A> block) {
-        return scope.child(child -> new RepeatBlock(scope, child, repeated.build(child, block)));
+    public <O2> Ops<O2> append(StageOp<A, O2> next) {
+        return new Ops.OpChain<>(this, next);
     }
 }

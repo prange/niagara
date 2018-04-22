@@ -1,11 +1,11 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.blocks.Block;
-import org.kantega.niagara.blocks.MapBlock;
+import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.MapSink;
 
 import java.util.function.Function;
 
-public class MapOp<A, B> implements Op<A, B> {
+public class MapOp<A, B> implements StageOp<A, B> {
 
     final Function<A, B> function;
 
@@ -15,14 +15,20 @@ public class MapOp<A, B> implements Op<A, B> {
 
 
     @Override
-    public <C> Op<A, C> fuse(Op<B, C> other) {
+    public <C> StageOp<A, C> fuse(StageOp<B, C> other) {
         if (other instanceof MapOp)
             return new MapOp<>(function.andThen(((MapOp<B, C>) other).function));
-        return Op.super.fuse(other);
+        if (other instanceof FlatMapOp)
+            return new FlatMapOp<>(function.andThen(((FlatMapOp<B, C>) other).function));
+        return StageOp.super.fuse(other);
     }
 
     @Override
-    public Block<A> build(Scope scope, Block<B> block) {
-        return new MapBlock<>(function, block);
+    public Source<B> apply0(Source<A> input) {
+        return (emit, done) -> input.build(
+          new MapSink<>(function, emit),
+          done.comap(this));
     }
+
+
 }
