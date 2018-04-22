@@ -142,7 +142,7 @@ public interface Instruction<O, R> {
 
         public Stream<O, Optional<Emit<O>>> build(Scope<O> loop) {
             return next -> {
-                Emitter emitter = source.build(loop.sink, r -> {
+                Emitter emitter = source.build(loop.sink(), r -> {
                     if (r.isNil())
                         next.accept(Try.value(Optional.empty()));
                     else
@@ -200,7 +200,7 @@ public interface Instruction<O, R> {
         @Override
         public Stream<O, Instruction<O,R>> build(Scope<O> loop) {
             return next -> () ->{
-                loop.waitStrategy.idle();
+                loop.waitStrategy().idle();
                 next.accept(Try.value(cont));
             };
         }
