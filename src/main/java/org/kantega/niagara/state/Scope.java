@@ -1,14 +1,14 @@
 package org.kantega.niagara.state;
 
 import org.kantega.niagara.sink.Sink;
-import org.kantega.niagara.thread.WaitStrategy;
+
+import java.util.function.Supplier;
 
 public interface Scope<O> {
 
     Sink<O> sink();
 
-    WaitStrategy waitStrategy();
+    <T> Step<T> wait(Supplier<Step<T>> next);
 
-    void setNext(Instruction<O,?> next);
 
 }

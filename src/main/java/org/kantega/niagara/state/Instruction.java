@@ -5,15 +5,18 @@ import org.kantega.niagara.Emitter;
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Try;
 import org.kantega.niagara.op.StageOp;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface Instruction<O, R> {
 
-    Stream<O,R> build(Scope<O> scope);
+    Step<R> eval(Scope<O> scope);
 
 
     static <O, R> Instruction<O, R> pure(R value) {
@@ -33,7 +36,7 @@ public interface Instruction<O, R> {
         return new Fail<>(t);
     }
 
-    static <O> Instruction<O, ?> source(Source<O> source) {
+    static <O, R> Instruction<O, Optional<Emit<O, R>>> emit(Source<O> source) {
         return new Emit<>(source);
     }
 
@@ -77,27 +80,30 @@ public interface Instruction<O, R> {
             this.value = value;
         }
 
-
         @Override
-        public Stream<O, R> build(Scope<O> loop) {
-            return next -> () -> next.accept(Try.value(value));
+        public Step<R> eval(Scope<O> scope) {
+            return Step.done(value);
         }
     }
 
     class BindScope<O, R, R2> implements Instruction<O, R2> {
 
-        final Instruction<O, R> scope;
+        final Instruction<O, R> instr;
         final Function<Try<R>, Instruction<O, R2>> function;
 
-        public BindScope(Instruction<O, R> scope, Function<Try<R>, Instruction<O, R2>> function) {
-            this.scope = scope;
+        public BindScope(Instruction<O, R> instr, Function<Try<R>, Instruction<O, R2>> function) {
+            this.instr = instr;
             this.function = function;
         }
 
 
+        public Step<R2> eval(Scope<O> ctx) {
+            return function.apply(Try.value(instr.eval(ctx).get())).eval(ctx);
+        }
+
         @Override
-        public Stream<O, R2> build(Scope<O> loop) {
-            return next -> scope.build(loop).stepper(r->loop.setNext(function.apply(r)));
+        public <R21> Instruction<O, R21> bind(Function<Try<R2>, Instruction<O, R21>> f) {
+            return instr.bind(rTry -> function.apply(rTry).bind(f));
         }
     }
 
@@ -111,8 +117,9 @@ public interface Instruction<O, R> {
             this.second = right;
         }
 
+
         @Override
-        public Stream<O, Source<O>> build(Scope<O> scope) {
+        public Step<Source<O>> eval(Scope<O> scope) {
             return null;
         }
     }
@@ -128,33 +135,59 @@ public interface Instruction<O, R> {
 
 
         @Override
-        public Stream<O, R> build(Scope<O> loop) {
-            return next -> () -> next.accept(Try.fail(t));
+        public Step<R> eval(Scope<O> scope) {
+            return null;
         }
     }
 
-    class Emit<O> implements Instruction<O, Optional<Emit<O>>> {
+    class Emit<O, R> implements Instruction<O, Optional<Emit<O, R>>> {
         final Source<O> source;
 
         public Emit(Source<O> source) {
             this.source = source;
         }
 
-        public Stream<O, Optional<Emit<O>>> build(Scope<O> loop) {
-            return next -> {
+        public Step<Optional<Emit<O, R>>> eval(Scope<O> loop) {
+            return Step.cont(() -> {
+                var cf = new CompletableFuture<Optional<Emit<O, R>>>();
                 Emitter emitter = source.build(loop.sink(), r -> {
                     if (r.isNil())
-                        next.accept(Try.value(Optional.empty()));
+                        cf.complete(Optional.empty());
                     else
-                        next.accept(Try.value(Optional.of(new Emit<O>(r))));
+                        cf.complete(Optional.of(new Emit<>(r)));
                 });
-                return emitter::emit;
-            };
+                return new EmittingStep<>(emitter, cf);
+            });
+        }
+
+        static class EmittingStep<O, R> implements Step<Optional<Emit<O, R>>> {
+
+            final CompletableFuture<Optional<Emit<O, R>>> cf;
+            final Emitter emitter;
+
+            EmittingStep(Emitter emitter, CompletableFuture<Optional<Emit<O, R>>> cf) {
+                this.cf = cf;
+                this.emitter = emitter;
+            }
+
+            @Override
+            public Step<Optional<Emit<O, R>>> step() {
+                if (!complete())
+                    emitter.emit();//TODO Must check for wait
+                return Step.done(get());
+            }
+
+            @Override
+            public Optional<Emit<O, R>> get() {
+                try {
+                    return cf.get();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
 
     }
-
-
 
 
     class Aquire<O, R> implements Instruction<O, R> {
@@ -167,8 +200,8 @@ public interface Instruction<O, R> {
 
 
         @Override
-        public Stream<O, R> build(Scope<O> loop) {
-            return next -> () -> next.accept(Try.call(resource));
+        public Step<R> eval(Scope<O> scope) {
+            return Step.cont(() -> Step.done(resource.get()));
         }
     }
 
@@ -182,14 +215,16 @@ public interface Instruction<O, R> {
             this.cleanup = cleanup;
         }
 
-
         @Override
-        public Stream<O, Unit> build(Scope<O> loop) {
-            return next -> () -> next.accept(Try.call(()->cleanup.accept(resource)));
+        public Step<Unit> eval(Scope<O> scope) {
+            return Step.cont(() -> {
+                cleanup.accept(resource);
+                return Step.done(Unit.unit());
+            });
         }
     }
 
-    class Pause<O, R> implements Instruction<O, Instruction<O,R>> {
+    class Pause<O, R> implements Instruction<O, R> {
 
         final Instruction<O, R> cont;
 
@@ -197,12 +232,10 @@ public interface Instruction<O, R> {
             this.cont = cont;
         }
 
+
         @Override
-        public Stream<O, Instruction<O,R>> build(Scope<O> loop) {
-            return next -> () ->{
-                loop.waitStrategy().idle();
-                next.accept(Try.value(cont));
-            };
+        public Step<R> eval(Scope<O> scope) {
+            return scope.wait(() -> cont.eval(scope));
         }
     }
 
