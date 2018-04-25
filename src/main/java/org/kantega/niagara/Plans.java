@@ -17,7 +17,13 @@ import static org.kantega.niagara.Plan.plan;
 public class Plans {
 
 
-    static <O> Plan<O> emit(O... values) {
+    /**
+     * A stream emitting the provided values and then halts
+     * @param values
+     * @param <O>
+     * @return
+     */
+    public static <O> Plan<O> emit(O... values) {
         return
           values.length == 0 ?
             Plans.nil() :
@@ -25,8 +31,13 @@ public class Plans {
     }
 
 
-    static <O> Plan<O> nil() {
-        return plan(Instruction.source(new NilSource<>()));
+    /**
+     * An empty stream
+     * @param <O>
+     * @return
+     */
+    public  static <O> Plan<O> nil() {
+        return plan(Instruction.emit(new NilSource<>()));
     }
 
 
@@ -38,7 +49,7 @@ public class Plans {
      * @return a plan that emits the values provided
      */
     public static <A> Plan<A> single(A value) {
-        return plan(Instruction.source(new SingleValueSource<>(value)));
+        return plan(Instruction.emit(new SingleValueSource<>(value)));
     }
 
     /**
@@ -49,7 +60,7 @@ public class Plans {
      * @return a plan that emits the values provided
      */
     public static <A> Plan<A> iterable(Iterable<A> iterable) {
-        return plan(Instruction.source(new IterableSource<>(iterable)));
+        return plan(Instruction.emit(new IterableSource<>(iterable)));
     }
 
 
@@ -61,7 +72,7 @@ public class Plans {
      * @return a  plan that polls a queue, and does nothing if the queue is empty.
      */
     public static <A> Plan<A> poll(Queue<A> q) {
-        return plan(Instruction.source(new QueueSource<>(q)));
+        return plan(Instruction.emit(new QueueSource<>(q)));
     }
 
 }

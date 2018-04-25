@@ -2,14 +2,13 @@ package org.kantega.niagara.state;
 
 import fj.Unit;
 import org.kantega.niagara.Emitter;
+import org.kantega.niagara.Interrupt;
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Try;
 import org.kantega.niagara.op.StageOp;
-import org.kantega.niagara.sink.Sink;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -36,16 +35,16 @@ public interface Instruction<O, R> {
         return new Fail<>(t);
     }
 
-    static <O, R> Instruction<O, Optional<Emit<O, R>>> emit(Source<O> source) {
+    static <O, R> Instruction<O, Unit> emit(Source<O> source) {
         return new Emit<>(source);
-    }
-
-    static <O, O2> Instruction<O2, Source<O2>> transform(Instruction<O, Source<O>> scope, StageOp<O, O2> op) {
-        return scope.map(sb -> sb.append(op)).get();
     }
 
     private <O2> Instruction<O2, R> get() {
         return (Instruction<O2, R>) this;
+    }
+
+    default <O2> Instruction<O2, Unit> transform(StageOp<O, O2> op) {
+        return scope.map(sb -> sb.append(op)).get();
     }
 
     default <R2> Instruction<O, R2> map(Function<R, R2> function) {
@@ -65,7 +64,7 @@ public interface Instruction<O, R> {
     }
 
     default Instruction<O, R> handle(Function<Throwable, Instruction<O, R>> handler) {
-        return this;
+        return bind(rTry -> rTry.fold(handler::apply, Instruction::<O, R>pure));
     }
 
     static <O> Instruction<O, Source<O>> join(Instruction<O, ?> left, Instruction<O, ?> right) {
@@ -98,7 +97,7 @@ public interface Instruction<O, R> {
 
 
         public Step<R2> eval(Scope<O> ctx) {
-            return function.apply(Try.value(instr.eval(ctx).get())).eval(ctx);
+            return function.apply(instr.eval(ctx).get()).eval(ctx);
         }
 
         @Override
@@ -136,57 +135,112 @@ public interface Instruction<O, R> {
 
         @Override
         public Step<R> eval(Scope<O> scope) {
-            return null;
+            return Step.fail(t);
         }
     }
 
-    class Emit<O, R> implements Instruction<O, Optional<Emit<O, R>>> {
+    class Compile<O, O2> implements Instruction<O2, Unit> {
+        final Source<O> source;
+        final StageOp<O, O2> stages;
+
+        public Compile(Source<O> source, StageOp<O, O2> stages) {
+            this.source = source;
+            this.stages = stages;
+        }
+
+        @Override
+        public Step<Unit> eval(Scope<O2> scope) {
+            return Step.cont(() -> new Emit<>(stages.apply(source)).eval(scope));
+        }
+
+        @Override
+        public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
+            return new Compile<>(source,stages.fuse(op));
+        }
+    }
+
+    class EncloseCompile<O,O2> implements Instruction<O2,Unit>{
+
+        final Instruction<O,?> inner;
+        final StageOp<O,O2> stages;
+
+        public EncloseCompile(Instruction<O, ?> inner, StageOp<O, O2> stages) {
+            this.inner = inner;
+            this.stages = stages;
+        }
+
+        @Override
+        public Step<Unit> eval(Scope<O2> scope) {
+            return inner.eval();
+        }
+
+        @Override
+        public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
+            return new EncloseCompile<>(inner,stages.fuse(op));
+        }
+    }
+
+    class Emit<O> implements Instruction<O, Unit> {
         final Source<O> source;
 
         public Emit(Source<O> source) {
             this.source = source;
         }
 
-        public Step<Optional<Emit<O, R>>> eval(Scope<O> loop) {
+        public Step<Unit> eval(Scope<O> loop) {
             return Step.cont(() -> {
-                var cf = new CompletableFuture<Optional<Emit<O, R>>>();
+                var cf = new CompletableFuture<Boolean>();
                 Emitter emitter = source.build(loop.sink(), r -> {
                     if (r.isNil())
-                        cf.complete(Optional.empty());
-                    else
-                        cf.complete(Optional.of(new Emit<>(r)));
+                        cf.complete(true);
                 });
-                return new EmittingStep<>(emitter, cf);
+                return new EmittingStep<>(emitter, new Interrupt(cf), loop);
             });
         }
 
-        static class EmittingStep<O, R> implements Step<Optional<Emit<O, R>>> {
+        static class EmittingStep<O> implements Step<Unit> {
 
-            final CompletableFuture<Optional<Emit<O, R>>> cf;
+            final Interrupt interrupt;
             final Emitter emitter;
+            final Scope<O> loop;
+            boolean isWaiting = false;
 
-            EmittingStep(Emitter emitter, CompletableFuture<Optional<Emit<O, R>>> cf) {
-                this.cf = cf;
+            EmittingStep(Emitter emitter, Interrupt interrupt, Scope<O> loop) {
+                this.interrupt = interrupt;
                 this.emitter = emitter;
+                this.loop = loop;
             }
 
+            //This is the hotspot, here 99% of all work will be done.
             @Override
-            public Step<Optional<Emit<O, R>>> step() {
+            public Step<Unit> step() {
                 if (!complete())
-                    emitter.emit();//TODO Must check for wait
-                return Step.done(get());
+                    try {
+                        if (emitter.emit()) {
+                            if (isWaiting)
+                                return loop.resetWait(() -> this);
+                            else
+                                return this;
+                        } else {
+                            isWaiting = true;
+                            return loop.wait(() -> this);
+                        }
+                    } catch (Throwable t) {
+                        return Step.fail(t);
+                    }
+                return Step.done(Unit.unit());
             }
 
             @Override
-            public Optional<Emit<O, R>> get() {
-                try {
-                    return cf.get();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+            public boolean complete() {
+                return interrupt.isInterrupted();
+            }
+
+            @Override
+            public Try<Unit> get() {
+                return Step.trampoline(this);
             }
         }
-
     }
 
 
@@ -201,7 +255,7 @@ public interface Instruction<O, R> {
 
         @Override
         public Step<R> eval(Scope<O> scope) {
-            return Step.cont(() -> Step.done(resource.get()));
+            return Step.trycatch(resource);
         }
     }
 
@@ -221,21 +275,6 @@ public interface Instruction<O, R> {
                 cleanup.accept(resource);
                 return Step.done(Unit.unit());
             });
-        }
-    }
-
-    class Pause<O, R> implements Instruction<O, R> {
-
-        final Instruction<O, R> cont;
-
-        public Pause(Instruction<O, R> cont) {
-            this.cont = cont;
-        }
-
-
-        @Override
-        public Step<R> eval(Scope<O> scope) {
-            return scope.wait(() -> cont.eval(scope));
         }
     }
 

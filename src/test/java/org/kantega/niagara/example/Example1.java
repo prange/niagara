@@ -15,7 +15,7 @@ public class Example1 {
         AtomicInteger counter = new AtomicInteger();
 
 
-        Source.emit(1, 2, 3,4,5,6)
+        Plans.emit(1, 2, 3,4,5,6)
           .map(n -> n + 1)
           .repeat()
           .takeWhile(n -> n < 5)

@@ -53,6 +53,7 @@ public interface Source<O> {
         @Override
         public Emitter build(Sink<O2> emit, Done<O2> done) {
             return ops.apply(source).build(emit,done);
+            skrive om til at build kan ta inn P2, og apply blir P2<Sink,Done> -> P2<Sink,Done>
         }
 
         @Override

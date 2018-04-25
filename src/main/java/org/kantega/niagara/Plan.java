@@ -25,10 +25,10 @@ import java.util.function.*;
  */
 public class Plan<A> {
 
-    private final Instruction<A, Source<A>> scope;
+    private final Instruction<A, Source<A>> instruction;
 
-    private Plan(Instruction<A, Source<A>> scope) {
-        this.scope = scope;
+    private Plan(Instruction<A, Source<A>> instruction) {
+        this.instruction = instruction;
     }
 
     /**
@@ -50,7 +50,7 @@ public class Plan<A> {
      * @return a new plan with the operation appended
      */
     protected <B> Plan<B> append(StageOp<A, B> op) {
-        return plan(Instruction.transform(scope, op));
+        return plan(instruction.transform(op));
     }
 
 
@@ -61,7 +61,7 @@ public class Plan<A> {
      * @return A new plan that first executes this plan, and then executes the next plan.
      */
     public Plan<A> append(Supplier<Plan<A>> next) {
-        return plan(scope.append(() -> next.get().scope));
+        return plan(instruction.append(() -> next.get().instruction));
     }
 
     /**
@@ -73,7 +73,37 @@ public class Plan<A> {
      * @return
      */
     public Plan<A> join(Plan<A> other) {
-        return plan(Instruction.join(scope, other.scope));
+        return plan(Instruction.join(instruction, other.instruction));
+    }
+
+    /**
+     * Filters the contents of the stream, only keeping the elements for
+     * which the predicate holds (alias for keep)
+     * @param pred
+     * @return
+     */
+    public Plan<A> filter(Predicate<A> pred) {
+        return keep(pred));
+    }
+
+    /**
+     * Filters the contents of the stream, only keeping the elements for
+     * which the predicate holds (alias for keep)
+     * @param pred
+     * @return
+     */
+    public Plan<A> keep(Predicate<A> pred) {
+        return append(new FilterOp<>(pred));
+    }
+
+    /**
+     * Filters the contents of the stream, only keeping the elements for
+     * which the predicate does not hold (alias for keep)
+     * @param pred
+     * @return
+     */
+    public Plan<A> drop(Predicate<A> pred) {
+        return keep(pred.negate()));
     }
 
     /**
@@ -102,7 +132,7 @@ public class Plan<A> {
 
     /**
      * Transforms elements of the plans into a new stream, and binding them together.
-     * The resulting plans have are compiled and run with their own scopes, wich might cause some overhead. If this i a
+     * The resulting plans are compiled and run with their own scopes, wich might cause some overhead. If this i a
      * frequent operation consider flatMap instead for high performance applications.
      *
      * @param f   the mapping function
@@ -121,7 +151,7 @@ public class Plan<A> {
      * @return a new plan.
      */
     public <B> Plan<B> eval(Function<A, Eval<B>> f) {
-        return append(new EvalOp<>(f)); //TODO handle exceptions
+        return append(new EvalOp<>(f));
     }
 
     /**
@@ -142,7 +172,7 @@ public class Plan<A> {
      * @return a new plan
      */
     public Plan<A> repeat() {
-        return plan(scope.repeat());
+        return plan(instruction.repeat());
     }
 
     /**

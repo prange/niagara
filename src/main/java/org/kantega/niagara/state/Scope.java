@@ -10,5 +10,6 @@ public interface Scope<O> {
 
     <T> Step<T> wait(Supplier<Step<T>> next);
 
+    <T> Step<T> resetWait(Supplier<Step<T>> next);
 
 }
