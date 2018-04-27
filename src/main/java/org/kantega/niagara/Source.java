@@ -336,7 +336,7 @@ public interface Source<A> {
      * @return a new stream without the count number of first elemements.
      */
     default Source<A> skip(long  count) {
-        return zipWithIndex().drop(pair -> pair._1() < max).map(P2::_2);
+        return zipWithIndex().drop(pair -> pair._1() < count).map(P2::_2);
     }
 
     /**
