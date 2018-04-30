@@ -1,7 +1,7 @@
 package org.kantega.niagara.source;
 
-import org.kantega.niagara.Source;
 import org.kantega.niagara.Emitter;
+import org.kantega.niagara.Source;
 import org.kantega.niagara.sink.Sink;
 
 import java.util.Iterator;
@@ -14,15 +14,22 @@ public class IterableSource<O> implements Source<O> {
     }
 
     @Override
-    public Emitter build(Sink<O> emit, Done<O> done) {
+    public Emitter build(Sink<O> sink) {
         Iterator<O> i = iterable.iterator();
         return () -> {
             if (i.hasNext())
-                emit.accept(i.next());
+                sink.consumer.accept(i.next());
             else
-                done.done(Source.nil());
+                sink.done.done(Source.nil());
 
             return true;
         };
+    }
+
+    @Override
+    public String toString() {
+        return "IterableSource{" +
+          iterable +
+          '}';
     }
 }

@@ -8,6 +8,10 @@ public interface Done<A> {
 
     void done(Source<A> remainder);
 
+    static <A> Done<A> noOp(){
+        return a->{};
+    }
+
     default <B> Done<B> comap(Function<Source<B>,Source<A>> f){
         return new CoMappedDone<>(f,this);
     }

@@ -1,11 +1,11 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.ConsumerSink;
+import org.kantega.niagara.sink.ConsumerConsumer;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.Queue;
 
-public class OfferQueueDroppingOp<A> implements StageOp<A, A> {
+public class OfferQueueDroppingOp<A> implements KeepTypeOp<A> {
 
     final Queue<A> queue;
 
@@ -15,8 +15,7 @@ public class OfferQueueDroppingOp<A> implements StageOp<A, A> {
 
 
     @Override
-    public Source<A> apply0(Source<A> input) {
-        return (emit, done) ->
-          input.build(new ConsumerSink<>(queue::offer, emit), done.comap(this));
+    public Sink<A> build(Sink<A> input) {
+        return Sink.sink(new ConsumerConsumer<>(queue::offer, input.consumer), input.done.comap(this));
     }
 }

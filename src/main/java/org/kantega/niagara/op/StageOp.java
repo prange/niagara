@@ -1,6 +1,7 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.function.Function;
 
@@ -10,18 +11,18 @@ public interface StageOp<A, B> extends Function<Source<A>, Source<B>> {
         return new ChainOp<>(this, other);
     }
 
-    default <C> StageOp<A, C> append(StageOp<B, C> other) {
-        return new ChainOp<>(this, other);
-    }
-
     @Override
     default Source<B> apply(Source<A> input) {
         if (input.isNil())
             return Source.nil();
-        else return apply0(input);
+        else
+            return
+              bSink -> input.build(build(bSink));
+
     }
 
-    Source<B> apply0(Source<A> input);
+
+    Sink<A> build(Sink<B> next);
 
 
 }

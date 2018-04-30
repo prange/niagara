@@ -125,4 +125,10 @@ public class Try<A> {
 
     }
 
+    @Override
+    public String toString() {
+        return "Try{" +
+          "value=" + value +
+          '}';
+    }
 }

@@ -1,13 +1,14 @@
 package org.kantega.niagara.sink;
 
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-public class FilteringSink<A> implements Sink<A> {
+public class FilteringConsumer<A> implements Consumer<A> {
 
     final Predicate<A> predicate;
-    final Sink<A> next;
+    final Consumer<A> next;
 
-    public FilteringSink(Predicate<A> predicate, Sink<A> next) {
+    public FilteringConsumer(Predicate<A> predicate, Consumer<A> next) {
         this.predicate = predicate;
         this.next = next;
     }

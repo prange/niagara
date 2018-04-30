@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.DropWhileSink;
+import org.kantega.niagara.sink.DropWhileConsumer;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.function.Predicate;
 
@@ -14,8 +14,8 @@ public class DropWhileOp<A> implements KeepTypeOp<A> {
     }
 
     @Override
-    public Source<A> apply0(Source<A> input) {
-        return (emit, end) -> input.build(new DropWhileSink<>(pred, input, end), end.comap(this));
+    public Sink<A> build(Sink<A> input) {
+        return Sink.sink(new DropWhileConsumer<>(pred, input.consumer, input.done), input.done.comap(this));
     }
 
 

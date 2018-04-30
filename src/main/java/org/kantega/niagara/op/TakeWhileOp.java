@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.Sink;
 import org.kantega.niagara.sink.TakeWhileSink;
 
 import java.util.function.Predicate;
@@ -14,10 +14,10 @@ public class TakeWhileOp<A> implements KeepTypeOp<A> {
     }
 
     @Override
-    public Source<A> apply0(Source<A> input) {
-        return (emit, end) -> input.build(
-          new TakeWhileSink<>(pred, emit, end),
-          end.comap(this));
+    public Sink<A> build(Sink<A> input) {
+        return Sink.sink(
+          new TakeWhileSink<>(pred, input.consumer, input.done),
+          input.done.comap(this));
     }
 
 

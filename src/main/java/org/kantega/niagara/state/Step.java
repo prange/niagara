@@ -2,6 +2,7 @@ package org.kantega.niagara.state;
 
 import org.kantega.niagara.Try;
 
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface Step<A> {
@@ -10,15 +11,25 @@ public interface Step<A> {
         return this;
     }
 
-    Try<A> get();
+    Try<A> complete();
 
-
-
-
-    default boolean complete() {
+    default boolean isComplete() {
         return true;
     }
 
+    default <B> Step<B> bind(Function<A,Step<B>> f){
+        return cont(()->{
+            Try<A> aTry = complete();
+            return aTry.fold(Step::fail, a->cont(()->f.apply(a)));
+        });
+    }
+
+    default <B> Step<B> bindTry(Function<Try<A>,Step<B>> f){
+        return cont(()->{
+            Try<A> aTry = complete();
+            return cont(()->f.apply(aTry));
+        });
+    }
 
     static <A> Step<A> trycatch(Supplier<A> st) {
         try {
@@ -45,12 +56,12 @@ public interface Step<A> {
             }
 
             @Override
-            public Try<A> get() {
+            public Try<A> complete() {
                 return trampoline(this);
             }
 
             @Override
-            public boolean complete() {
+            public boolean isComplete() {
                 return false;
             }
 
@@ -59,13 +70,13 @@ public interface Step<A> {
 
     static <A> Try<A> trampoline(final Step<A> trampoline) {
         var step = trampoline;
-        while (!step.complete()) {
+        while (!step.isComplete()) {
             try {
                 step = step.step();
             } catch (Throwable t) {
                 return Try.fail(t);
             }
         }
-        return step.get();
+        return step.complete();
     }
 }

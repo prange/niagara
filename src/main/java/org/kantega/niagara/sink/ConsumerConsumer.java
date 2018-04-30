@@ -2,12 +2,12 @@ package org.kantega.niagara.sink;
 
 import java.util.function.Consumer;
 
-public class ConsumerSink<O> implements Sink<O> {
+public class ConsumerConsumer<O> implements Consumer<O>{
 
     final Consumer<O> consumer;
-    final Sink<O> next;
+    final Consumer<O> next;
 
-    public ConsumerSink(Consumer<O> consumer, Sink<O> next) {
+    public ConsumerConsumer(Consumer<O> consumer, Consumer<O> next) {
         this.consumer = consumer;
         this.next = next;
     }

@@ -5,9 +5,10 @@ import org.kantega.niagara.Emitter;
 import org.kantega.niagara.Interrupt;
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Try;
+import org.kantega.niagara.op.NoOp;
 import org.kantega.niagara.op.StageOp;
+import org.kantega.niagara.sink.Sink;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -35,16 +36,13 @@ public interface Instruction<O, R> {
         return new Fail<>(t);
     }
 
-    static <O, R> Instruction<O, Unit> emit(Source<O> source) {
-        return new Emit<>(source);
+    static <O> Instruction<O, Unit> emit(Source<O> source) {
+        return new Compile<>(source, new NoOp<>());
     }
 
-    private <O2> Instruction<O2, R> get() {
-        return (Instruction<O2, R>) this;
-    }
 
     default <O2> Instruction<O2, Unit> transform(StageOp<O, O2> op) {
-        return scope.map(sb -> sb.append(op)).get();
+        return new EncloseCompile<>(this.map(__ -> Unit.unit()), op);
     }
 
     default <R2> Instruction<O, R2> map(Function<R, R2> function) {
@@ -52,7 +50,7 @@ public interface Instruction<O, R> {
     }
 
     default <R2> Instruction<O, R2> bind(Function<Try<R>, Instruction<O, R2>> function) {
-        return new BindScope<>(this, function);
+        return new BindInstr<>(this, function);
     }
 
     default Instruction<O, R> append(Supplier<Instruction<O, R>> other) {
@@ -67,7 +65,7 @@ public interface Instruction<O, R> {
         return bind(rTry -> rTry.fold(handler::apply, Instruction::<O, R>pure));
     }
 
-    static <O> Instruction<O, Source<O>> join(Instruction<O, ?> left, Instruction<O, ?> right) {
+    static <O> Instruction<O, Unit> join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
         return new Join<>(left, right);
     }
 
@@ -85,40 +83,49 @@ public interface Instruction<O, R> {
         }
     }
 
-    class BindScope<O, R, R2> implements Instruction<O, R2> {
+    class BindInstr<O, R, R2> implements Instruction<O, R2> {
 
         final Instruction<O, R> instr;
         final Function<Try<R>, Instruction<O, R2>> function;
 
-        public BindScope(Instruction<O, R> instr, Function<Try<R>, Instruction<O, R2>> function) {
+        public BindInstr(Instruction<O, R> instr, Function<Try<R>, Instruction<O, R2>> function) {
             this.instr = instr;
             this.function = function;
         }
 
 
         public Step<R2> eval(Scope<O> ctx) {
-            return function.apply(instr.eval(ctx).get()).eval(ctx);
+            return instr.eval(ctx).bindTry(rTry->function.apply(rTry).eval(ctx));
         }
 
         @Override
         public <R21> Instruction<O, R21> bind(Function<Try<R2>, Instruction<O, R21>> f) {
-            return instr.bind(rTry -> function.apply(rTry).bind(f));
+            return instr.bind(rTry ->
+              function.apply(rTry).bind(f));
+        }
+
+        @Override
+        public String toString() {
+            return "BindInstr{" +
+              "instr=" + instr +
+              ", function=" + function +
+              '}';
         }
     }
 
 
-    class Join<O> implements Instruction<O, Source<O>> {
-        final Instruction<O, ?> first;
-        final Instruction<O, ?> second;
+    class Join<O> implements Instruction<O, Unit> {
+        final Instruction<O, Unit> first;
+        final Instruction<O, Unit> second;
 
-        public Join(Instruction<O, ?> left, Instruction<O, ?> right) {
+        public Join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
             this.first = left;
             this.second = right;
         }
 
 
         @Override
-        public Step<Source<O>> eval(Scope<O> scope) {
+        public Step<Unit> eval(Scope<O> scope) {
             return null;
         }
     }
@@ -155,28 +162,44 @@ public interface Instruction<O, R> {
 
         @Override
         public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
-            return new Compile<>(source,stages.fuse(op));
+            return new Compile<>(source, stages.fuse(op));
+        }
+
+        @Override
+        public String toString() {
+            return "Compile{" +
+              "source=" + source +
+              ", stages=" + stages +
+              '}';
         }
     }
 
-    class EncloseCompile<O,O2> implements Instruction<O2,Unit>{
+    class EncloseCompile<O, O2> implements Instruction<O2, Unit> {
 
-        final Instruction<O,?> inner;
-        final StageOp<O,O2> stages;
+        final Instruction<O, Unit> inner;
+        final StageOp<O, O2> stages;
 
-        public EncloseCompile(Instruction<O, ?> inner, StageOp<O, O2> stages) {
+        public EncloseCompile(Instruction<O, Unit> inner, StageOp<O, O2> stages) {
             this.inner = inner;
             this.stages = stages;
         }
 
         @Override
-        public Step<Unit> eval(Scope<O2> scope) {
-            return inner.eval();
+        public Step<Unit> eval(Scope<O2> outerScope) {
+            return inner.eval(new InnerScope<>(stages, outerScope));
         }
 
         @Override
         public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
-            return new EncloseCompile<>(inner,stages.fuse(op));
+            return new EncloseCompile<>(inner, stages.fuse(op));
+        }
+
+        @Override
+        public String toString() {
+            return "EncloseCompile{" +
+              "inner=" + inner +
+              ", stages=" + stages +
+              '}';
         }
     }
 
@@ -190,10 +213,10 @@ public interface Instruction<O, R> {
         public Step<Unit> eval(Scope<O> loop) {
             return Step.cont(() -> {
                 var cf = new CompletableFuture<Boolean>();
-                Emitter emitter = source.build(loop.sink(), r -> {
+                Emitter emitter = source.build(Sink.sink(loop.sink(), r -> {
                     if (r.isNil())
                         cf.complete(true);
-                });
+                }));
                 return new EmittingStep<>(emitter, new Interrupt(cf), loop);
             });
         }
@@ -214,7 +237,7 @@ public interface Instruction<O, R> {
             //This is the hotspot, here 99% of all work will be done.
             @Override
             public Step<Unit> step() {
-                if (!complete())
+                if (!interrupt.isInterrupted())
                     try {
                         if (emitter.emit()) {
                             if (isWaiting)
@@ -232,14 +255,21 @@ public interface Instruction<O, R> {
             }
 
             @Override
-            public boolean complete() {
-                return interrupt.isInterrupted();
+            public boolean isComplete() {
+                return false;
             }
 
             @Override
-            public Try<Unit> get() {
+            public Try<Unit> complete() {
                 return Step.trampoline(this);
             }
+        }
+
+        @Override
+        public String toString() {
+            return "Emit{" +
+              "source=" + source +
+              '}';
         }
     }
 
@@ -277,6 +307,7 @@ public interface Instruction<O, R> {
             });
         }
     }
+
 
 
 }

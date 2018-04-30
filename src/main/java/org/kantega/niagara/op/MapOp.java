@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.MapSink;
+import org.kantega.niagara.sink.MapConsumer;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.function.Function;
 
@@ -24,11 +24,14 @@ public class MapOp<A, B> implements StageOp<A, B> {
     }
 
     @Override
-    public Source<B> apply0(Source<A> input) {
-        return (emit, done) -> input.build(
-          new MapSink<>(function, emit),
-          done.comap(this));
+    public Sink<A> build(Sink<B> input) {
+        return Sink.sink(
+          new MapConsumer<>(function, input.consumer),
+          input.done.comap(this));
     }
 
-
+    @Override
+    public String toString() {
+        return "MapOp{}";
+    }
 }

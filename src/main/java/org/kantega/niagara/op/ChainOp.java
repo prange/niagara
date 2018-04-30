@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.Sink;
 
 public class ChainOp<A, B, C> implements StageOp<A, C> {
 
@@ -18,9 +18,15 @@ public class ChainOp<A, B, C> implements StageOp<A, C> {
     }
 
     @Override
-    public Source<C> apply0(Source<A> input) {
-        return op2.apply(op1.apply(input));
+    public Sink<A> build(Sink<C> input) {
+        return op1.build(op2.build(input));
     }
 
-
+    @Override
+    public String toString() {
+        return "ChainOp{" +
+           op1.getClass().getSimpleName() +
+          "," + op2.getClass().getSimpleName() +
+          '}';
+    }
 }

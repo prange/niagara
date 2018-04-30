@@ -1,13 +1,14 @@
 package org.kantega.niagara.sink;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class MapSink<A,B> implements Sink<A> {
+public class MapConsumer<A,B> implements Consumer<A> {
 
     final Function<A,B> function;
-    final Sink<B> next;
+    final Consumer<B> next;
 
-    public MapSink(Function<A, B> function, Sink<B> next) {
+    public MapConsumer(Function<A, B> function, Consumer<B> next) {
         this.function = function;
         this.next = next;
     }

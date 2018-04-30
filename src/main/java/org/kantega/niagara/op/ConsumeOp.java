@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.ConsumerSink;
+import org.kantega.niagara.sink.ConsumerConsumer;
+import org.kantega.niagara.sink.Sink;
 
 import java.util.function.Consumer;
 
@@ -15,9 +15,8 @@ public class ConsumeOp<A> implements KeepTypeOp<A> {
 
 
     @Override
-    public Source<A> apply0(Source<A> input) {
-        return (emit, done) ->
-          input.build(new ConsumerSink<>(consumer, emit), done.comap(this));
+    public Sink<A> build(Sink<A> input) {
+        return Sink.sink(new ConsumerConsumer<>(consumer, input.consumer), input.done.comap(this));
 
     }
 }

@@ -1,7 +1,8 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.ConsumerSink;
+import org.kantega.niagara.sink.ConsumerConsumer;
+import org.kantega.niagara.sink.Sink;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
@@ -20,7 +21,7 @@ public class OfferQueueWaitingOp<A> implements StageOp<A, A> {
 
 
     @Override
-    public Source<A> apply0(Source<A> input) {
+    public Sink<A> build(Sink<A> input) {
         Consumer<A> consumer = new Consumer<>() {
 
             WaitStrategy strategy = waitStrategy.get();
@@ -34,7 +35,7 @@ public class OfferQueueWaitingOp<A> implements StageOp<A, A> {
             }
         };
 
-        return (emit, done) ->
-          input.build(new ConsumerSink<>(consumer, emit), done.comap(this));
+        return
+          Sink.sink(new ConsumerConsumer<>(consumer, input.consumer), input.done.comap(this));
     }
 }

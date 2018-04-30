@@ -1,13 +1,14 @@
 package org.kantega.niagara.sink;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
-public class MapWithStateSink<S,A> implements Sink<A> {
+public class MapWithStateSink<S,A> implements Consumer<A> {
     volatile S state;
     final BiFunction<S, A, S> zipFunction;
-    final Sink<S> next;
+    final Consumer<S> next;
 
-    public MapWithStateSink(S initState, BiFunction<S, A, S> zipFunction, Sink<S> next) {
+    public MapWithStateSink(S initState, BiFunction<S, A, S> zipFunction, Consumer<S> next) {
         this.zipFunction = zipFunction;
         this.state = initState;
         this.next = next;

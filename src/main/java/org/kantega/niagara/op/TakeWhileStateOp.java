@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.Sink;
 import org.kantega.niagara.sink.TakeWhileStateSink;
 
 import java.util.function.BiFunction;
@@ -19,7 +19,7 @@ public class TakeWhileStateOp<S, A> implements KeepTypeOp<A> {
     }
 
     @Override
-    public Source<A> apply0(Source<A> input) {
-        return (sink, done) -> input.build(new TakeWhileStateSink<>(state, stateUpdate, checkState, sink, done), done.comap(this));
+    public Sink<A> build(Sink<A> input) {
+        return Sink.sink(new TakeWhileStateSink<>(state, stateUpdate, checkState, input.consumer, input.done), input.done.comap(this));
     }
 }

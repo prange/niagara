@@ -1,7 +1,7 @@
 package org.kantega.niagara.source;
 
-import org.kantega.niagara.Source;
 import org.kantega.niagara.Emitter;
+import org.kantega.niagara.Source;
 import org.kantega.niagara.sink.Sink;
 
 public class SingleValueSource<O> implements Source<O> {
@@ -12,10 +12,10 @@ public class SingleValueSource<O> implements Source<O> {
     }
 
     @Override
-    public Emitter build(Sink<O> emit, Done<O> done) {
+    public Emitter build(Sink<O> sink) {
         return () -> {
-            emit.accept(value);
-            done.done(Source.nil());
+            sink.consumer.accept(value);
+            sink.done.done(Source.nil());
             return true;
         };
     }

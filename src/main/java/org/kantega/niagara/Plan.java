@@ -2,11 +2,14 @@ package org.kantega.niagara;
 
 import fj.P;
 import fj.P2;
+import fj.Unit;
 import org.kantega.niagara.op.*;
 import org.kantega.niagara.state.Instruction;
+import org.kantega.niagara.state.TopLevelScope;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
 
 /**
@@ -25,20 +28,19 @@ import java.util.function.*;
  */
 public class Plan<A> {
 
-    private final Instruction<A, Source<A>> instruction;
+    public final Instruction<A, Unit> instruction;
 
-    private Plan(Instruction<A, Source<A>> instruction) {
+    private Plan(Instruction<A, Unit> instruction) {
         this.instruction = instruction;
     }
 
     /**
      * Creates a new plan with the provided operations
      *
-     * @param ops the operations the plan contains
      * @param <A> the type of the value the operation outputs
      * @return a new plan
      */
-    public static <A> Plan<A> plan(Instruction<A, Source<A>> scope) {
+    public static <A> Plan<A> plan(Instruction<A, Unit> scope) {
         return new Plan<>(scope);
     }
 
@@ -61,7 +63,7 @@ public class Plan<A> {
      * @return A new plan that first executes this plan, and then executes the next plan.
      */
     public Plan<A> append(Supplier<Plan<A>> next) {
-        return plan(instruction.append(() -> next.get().instruction));
+        return plan(instruction.<Unit>append(() -> next.get().instruction));
     }
 
     /**
@@ -79,16 +81,18 @@ public class Plan<A> {
     /**
      * Filters the contents of the stream, only keeping the elements for
      * which the predicate holds (alias for keep)
+     *
      * @param pred
      * @return
      */
     public Plan<A> filter(Predicate<A> pred) {
-        return keep(pred));
+        return keep(pred);
     }
 
     /**
      * Filters the contents of the stream, only keeping the elements for
      * which the predicate holds (alias for keep)
+     *
      * @param pred
      * @return
      */
@@ -99,11 +103,12 @@ public class Plan<A> {
     /**
      * Filters the contents of the stream, only keeping the elements for
      * which the predicate does not hold (alias for keep)
+     *
      * @param pred
      * @return
      */
     public Plan<A> drop(Predicate<A> pred) {
-        return keep(pred.negate()));
+        return keep(pred.negate());
     }
 
     /**
@@ -140,7 +145,7 @@ public class Plan<A> {
      * @return a new plan
      */
     public <B> Plan<B> bind(Function<A, Plan<B>> f) {
-        return append(new BindOp<>(f));
+        return append(new BindOp<A, B>(f));
     }
 
     /**
@@ -162,8 +167,18 @@ public class Plan<A> {
      * @return a new plan
      */
     public Plan<A> takeWhile(Predicate<A> pred) {
-        return
-          append(new TakeWhileOp<>(pred));
+        return append(new TakeWhileOp<>(pred));
+    }
+
+    /**
+     * Ignores output as long as the predicate holds. Start to emit
+     * elements as soon as the predicate yields false.
+     *
+     * @param pred The predicate that tests the output.
+     * @return a plan that only outputs elements after the predicate yields false
+     */
+    public Plan<A> dropWhile(Predicate<A> pred) {
+        return append(new TakeWhileOp<>(pred));
     }
 
     /**
@@ -270,5 +285,10 @@ public class Plan<A> {
         return append(new OfferQueueWaitingOp<>(queue, waitStrategy));
     }
 
+
+
+    public void run(){
+        new TopLevelScope<>(instruction,a->{},WaitStrategy.nowait).loop();
+    }
 
 }

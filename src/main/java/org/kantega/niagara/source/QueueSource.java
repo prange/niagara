@@ -1,7 +1,7 @@
 package org.kantega.niagara.source;
 
-import org.kantega.niagara.Source;
 import org.kantega.niagara.Emitter;
+import org.kantega.niagara.Source;
 import org.kantega.niagara.sink.Sink;
 
 import java.util.Queue;
@@ -15,11 +15,11 @@ public class QueueSource<O> implements Source<O> {
     }
 
     @Override
-    public Emitter build(Sink<O> emit, Done<O> done) {
+    public Emitter build(Sink<O> sink) {
         return () -> {
             O v = queue.poll();
             if (v != null) {
-                emit.accept(v);
+                sink.consumer.accept(v);
                 return true;
             } else
                 return false;

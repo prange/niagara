@@ -24,7 +24,6 @@ public class Example1 {
           .takeWhile(n ->
             counter.incrementAndGet() < 40)
           .eval(Example1::println)
-          .build()
           .run();
     }
 

@@ -1,16 +1,16 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.Source;
+import org.kantega.niagara.sink.Sink;
 
 public class NoOp<A> implements KeepTypeOp<A> {
 
     @Override
-    public <C> StageOp<A, C> append(StageOp<A, C> other) {
+    public <C> StageOp<A, C> fuse(StageOp<A, C> other) {
         return other;
     }
 
     @Override
-    public Source<A> apply0(Source<A> input) {
+    public Sink<A> build(Sink<A> input) {
         return input;
     }
 }

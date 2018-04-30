@@ -4,17 +4,18 @@ import org.kantega.niagara.Source;
 import org.kantega.niagara.source.Done;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-public class TakeWhileStateSink<S, A> implements Sink<A> {
+public class TakeWhileStateSink<S, A> implements Consumer<A> {
 
      S state;
     final BiFunction<S, A, S> stateUpdate;
     final Predicate<S> checkState;
-    final Sink<A> next;
+    final Consumer<A> next;
     final Done<A> done;
 
-    public TakeWhileStateSink(S state, BiFunction<S, A, S> stateUpdate, Predicate<S> checkState, Sink<A> next, Done<A> done) {
+    public TakeWhileStateSink(S state, BiFunction<S, A, S> stateUpdate, Predicate<S> checkState, Consumer<A> next, Done<A> done) {
         this.state = state;
         this.stateUpdate = stateUpdate;
         this.checkState = checkState;
