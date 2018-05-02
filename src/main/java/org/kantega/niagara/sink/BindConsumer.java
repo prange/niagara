@@ -1,6 +1,7 @@
 package org.kantega.niagara.sink;
 
 import org.kantega.niagara.Plan;
+import org.kantega.niagara.source.Done;
 import org.kantega.niagara.state.NoWaitScope;
 
 import java.util.function.Consumer;
@@ -19,6 +20,6 @@ public class BindConsumer<O,O2> implements Consumer<O> {
 
     @Override
     public void accept(O o) {
-        function.apply(o).instruction.eval(new NoWaitScope<>(next)).complete();
+        function.apply(o).instruction.eval(new NoWaitScope<>(Sink.sink(next, Done.noOp()))).complete();
     }
 }

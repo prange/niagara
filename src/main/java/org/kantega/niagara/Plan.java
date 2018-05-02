@@ -182,7 +182,8 @@ public class Plan<A> {
     }
 
     /**
-     * Repeats the execution of the current scope until halted.
+     * Repeats the execution of the current scope until encolsing scope
+     * is halted.
      *
      * @return a new plan
      */

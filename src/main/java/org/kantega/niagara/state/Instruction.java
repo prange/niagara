@@ -53,12 +53,12 @@ public interface Instruction<O, R> {
         return new BindInstr<>(this, function);
     }
 
-    default Instruction<O, R> append(Supplier<Instruction<O, R>> other) {
-        return bind(__ -> other.get());
+    default Instruction<O, Unit> append(Supplier<Instruction<O, Unit>> other) {
+        return new Append<>(this.map(__->Unit.unit()), other);
     }
 
-    default Instruction<O, R> repeat() {
-        return append(this::repeat);
+    default Instruction<O, Unit> repeat() {
+        return new Interruptable<>(append(this::repeat));
     }
 
     default Instruction<O, R> handle(Function<Throwable, Instruction<O, R>> handler) {
@@ -95,7 +95,7 @@ public interface Instruction<O, R> {
 
 
         public Step<R2> eval(Scope<O> ctx) {
-            return instr.eval(ctx).bindTry(rTry->function.apply(rTry).eval(ctx));
+            return instr.eval(ctx).bindTry(rTry -> function.apply(rTry).eval(ctx));
         }
 
         @Override
@@ -113,6 +113,37 @@ public interface Instruction<O, R> {
         }
     }
 
+    class Append<O> implements Instruction<O, Unit> {
+        final Instruction<O, Unit> first;
+        final Supplier<Instruction<O, Unit>> next;
+
+        public Append(Instruction<O, Unit> first, Supplier<Instruction<O, Unit>> next) {
+            this.first = first;
+            this.next = next;
+        }
+
+        @Override
+        public Step<Unit> eval(Scope<O> scope) {
+            return
+              first
+                .eval(scope)
+                .bind(__ ->
+                  next.get().eval(scope.reset()));
+        }
+    }
+
+    class Interruptable<O> implements Instruction<O, Unit> {
+        final Instruction<O, Unit> instruction;
+
+        public Interruptable(Instruction<O, Unit> instruction) {
+            this.instruction = instruction;
+        }
+
+        @Override
+        public Step<Unit> eval(Scope<O> scope) {
+            return new Step.InterruptingStep<>(scope,instruction.eval(InnerScope.wrap(scope)));
+        }
+    }
 
     class Join<O> implements Instruction<O, Unit> {
         final Instruction<O, Unit> first;
@@ -186,7 +217,7 @@ public interface Instruction<O, R> {
 
         @Override
         public Step<Unit> eval(Scope<O2> outerScope) {
-            return inner.eval(new InnerScope<>(stages, outerScope));
+            return new Step.InterruptingStep<>(outerScope, inner.eval(new InnerScope<>(stages, outerScope)));
         }
 
         @Override
@@ -211,59 +242,11 @@ public interface Instruction<O, R> {
         }
 
         public Step<Unit> eval(Scope<O> loop) {
-            return Step.cont(() -> {
-                var cf = new CompletableFuture<Boolean>();
-                Emitter emitter = source.build(Sink.sink(loop.sink(), r -> {
-                    if (r.isNil())
-                        cf.complete(true);
-                }));
-                return new EmittingStep<>(emitter, new Interrupt(cf), loop);
-            });
+            return Step.done(source.build(loop.sink()))
+              .bind(emitter -> new Step.EmittingStep<>(emitter, loop));
+
         }
 
-        static class EmittingStep<O> implements Step<Unit> {
-
-            final Interrupt interrupt;
-            final Emitter emitter;
-            final Scope<O> loop;
-            boolean isWaiting = false;
-
-            EmittingStep(Emitter emitter, Interrupt interrupt, Scope<O> loop) {
-                this.interrupt = interrupt;
-                this.emitter = emitter;
-                this.loop = loop;
-            }
-
-            //This is the hotspot, here 99% of all work will be done.
-            @Override
-            public Step<Unit> step() {
-                if (!interrupt.isInterrupted())
-                    try {
-                        if (emitter.emit()) {
-                            if (isWaiting)
-                                return loop.resetWait(() -> this);
-                            else
-                                return this;
-                        } else {
-                            isWaiting = true;
-                            return loop.wait(() -> this);
-                        }
-                    } catch (Throwable t) {
-                        return Step.fail(t);
-                    }
-                return Step.done(Unit.unit());
-            }
-
-            @Override
-            public boolean isComplete() {
-                return false;
-            }
-
-            @Override
-            public Try<Unit> complete() {
-                return Step.trampoline(this);
-            }
-        }
 
         @Override
         public String toString() {
@@ -307,7 +290,6 @@ public interface Instruction<O, R> {
             });
         }
     }
-
 
 
 }

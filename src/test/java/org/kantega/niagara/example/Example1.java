@@ -22,7 +22,7 @@ public class Example1 {
           .repeat()
           .flatMap(n -> Arrays.asList(n, n))
           .takeWhile(n ->
-            counter.incrementAndGet() < 40)
+            counter.incrementAndGet() < 20)
           .eval(Example1::println)
           .run();
     }
