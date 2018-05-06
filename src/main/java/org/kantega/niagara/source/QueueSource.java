@@ -6,7 +6,7 @@ import org.kantega.niagara.sink.Sink;
 
 import java.util.Queue;
 
-public class QueueSource<O> implements Source<O> {
+public final class QueueSource<O> implements Source<O> {
 
     final Queue<O> queue;
 

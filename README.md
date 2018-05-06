@@ -56,7 +56,7 @@ public class Example1 {
           .eval(Example1::println)
           .repeat()
           .takeWhile(n -> n > 5)
-          // .repeat()
+          .repeat()
           .flatMap(n -> Arrays.asList(n, n, n, n, n))
           .eval(Example1::println)
           .takeWhile(n -> counter.incrementAndGet() > 20)
