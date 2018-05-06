@@ -55,7 +55,7 @@ public class Example1 {
           .map(n -> n + 1)
           .eval(Example1::println)
           .repeat()
-          .takeWhile(n -> n > 5)
+          .takeWhile(n -> n < 5)
           .repeat()
           .flatMap(n -> Arrays.asList(n, n, n, n, n))
           .eval(Example1::println)
