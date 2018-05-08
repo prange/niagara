@@ -18,7 +18,7 @@ public class RTS {
       t -> Action.run(t::printStackTrace);
 
     public <A> void runAction(Action<A> action) {
-        submit(new ActionRunner<>(RTS.this, defaultHandler, action));
+        submit(new ActionRunner<>(RTS.this, defaultHandler).setInitAction(action));
     }
 
     public <A> Async<A> submit(ActionRunner<A> r) {

@@ -31,16 +31,24 @@ public class Join<A, B, C, D> {
 
     public void left(Try<A> aTry) {
         var status = ref.updateAndGet(JoinStatus::setLeft);
-        if (status.isComplete())
-            rts.runAction(handler.apply(Either.left(P.p(aTry, bFiber))));
-        //TODO, legg på continuation her.
+        if (status.isComplete()) {
+            Action<C> cAction = handler.apply(Either.left(P.p(aTry, bFiber)));
+            if (mayebCont.isPresent())
+                rts.runAction(cAction.bind(mayebCont.get()));
+            else
+                rts.runAction(cAction);
+        }
     }
 
     public void right(Try<B> bTry) {
         var status = ref.updateAndGet(JoinStatus::setRight);
-        if (status.isComplete())
-            rts.runAction(handler.apply(Either.right(P.p(aFiber, bTry))));
-        //TODO, legg på continuation her.
+        if (status.isComplete()){
+            Action<C> cAction = handler.apply(Either.right(P.p(aFiber, bTry)));
+            if (mayebCont.isPresent())
+                rts.runAction(cAction.bind(mayebCont.get()));
+            else
+                rts.runAction(cAction);
+        }
     }
 
     static class JoinStatus {
