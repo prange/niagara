@@ -5,8 +5,6 @@ import org.kantega.niagara.task.Console;
 import org.kantega.niagara.task.RTS;
 
 public class ActionExample {
-
-
     public static void main(String[] args) {
         var unitAction = Console.prinln("One");
         var integerAction = Action.value(1234);
@@ -17,8 +15,5 @@ public class ActionExample {
         var rts = new RTS();
         rts.runAction(unitAction);
         rts.runAction(printResult);
-
     }
-
-
 }
