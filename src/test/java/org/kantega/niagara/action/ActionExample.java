@@ -1,6 +1,7 @@
 package org.kantega.niagara.action;
 
 import fj.Unit;
+import org.kantega.niagara.Try;
 import org.kantega.niagara.task.Action;
 import org.kantega.niagara.task.RTS;
 
@@ -16,7 +17,7 @@ public class ActionExample {
         var integerAction = Action.value(1234);
         var mapped = integerAction.map(String::valueOf);
         var printResult =
-          mapped.bind(new PrintlnCont(Duration.ofSeconds(1)));
+          mapped.flatMap(new PrintlnCont(Duration.ofSeconds(1)));
 
         var rts = new RTS();
         rts.runAction(unitAction);

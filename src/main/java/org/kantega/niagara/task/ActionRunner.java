@@ -4,6 +4,7 @@ import fj.Unit;
 import org.kantega.niagara.Try;
 import org.kantega.niagara.task.Action.Pure;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 public class ActionRunner<A> implements Fiber<A> {
@@ -19,9 +20,6 @@ public class ActionRunner<A> implements Fiber<A> {
         this.currentAction = (Action<Object>) initAction;
     }
 
-    public void setCurrentAction(Action<Object> currentAction) {
-        this.currentAction = currentAction;
-    }
 
     public void run() {
 
@@ -32,8 +30,7 @@ public class ActionRunner<A> implements Fiber<A> {
                     if (cont != null) {
                         currentAction = cont.apply(Try.value(ca.value));
                         cont = null;
-                    }
-                    else
+                    } else
                         currentAction = null;
                     break;
                 }
@@ -74,8 +71,23 @@ public class ActionRunner<A> implements Fiber<A> {
                 }
                 case fork: {
                     var ca = currentAction.<Action.Fork<A>>as();
-                    rts.submit(new ActionRunner<>(rts, ca.handler.orElse(defaultHandler), ca.forked));
+                    rts.submit(new ActionRunner<>(rts, defaultHandler, ca.left));
+                    rts.submit(new ActionRunner<>(rts, defaultHandler, ca.right));
+                    currentAction = null;
+                    cont = null;
                     break;
+                }
+                //TODO nasty!
+                case par: {
+                    var ca = currentAction.<Action.Par<Object, Object, Object>>as();
+                    var leftRunner = new ActionRunner<>(rts, defaultHandler, ca.left);
+                    var rightRunner = new ActionRunner<>(rts, defaultHandler, ca.right);
+                    var join = new Join<>(ca.handler, leftRunner, rightRunner, rts, Optional.ofNullable(cont));
+                    rts.submit(leftRunner.setCurrentAction(ca.left.bind(o -> Action.run(() -> join.left(o)))));
+                    rts.submit(rightRunner.setCurrentAction(ca.right.bind(o -> Action.run(() -> join.right(o)))));
+
+                    currentAction = null;
+                    cont = null;
                 }
 
             }
@@ -83,5 +95,19 @@ public class ActionRunner<A> implements Fiber<A> {
         }
     }
 
+    public <B> ActionRunner<B> setCurrentAction(Action<B> currentAction) {
+        this.currentAction = (Action<Object>) currentAction;
+        return (ActionRunner<B>) this;
+    }
 
+
+    @Override
+    public Action<Unit> interrupt() {
+        return null;
+    }
+
+    @Override
+    public Action<A> attach() {
+        return null;
+    }
 }

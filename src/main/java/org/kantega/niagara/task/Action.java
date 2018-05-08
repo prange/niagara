@@ -1,16 +1,17 @@
 package org.kantega.niagara.task;
 
+import fj.P2;
 import fj.Unit;
+import fj.data.Either;
 import org.kantega.niagara.Try;
 
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public interface Action<A> {
 
     enum Tag {
-        bind, fail, pure, fork, effect
+        bind, fail, pure, fork, effect,par
     }
 
 
@@ -36,8 +37,12 @@ public interface Action<A> {
             value(f.apply(a))));
     }
 
-    default <B> Action<B> bind(Function<A, Action<B>> f) {
+    default <B> Action<B> flatMap(Function<A, Action<B>> f) {
         return new Bind<>(this, aTry -> aTry.fold(Fail::new, f::apply));
+    }
+
+    default <B> Action<B> bind(Function<Try<A>, Action<B>> f) {
+        return new Bind<>(this, f);
     }
 
     default <T> T as() {
@@ -104,14 +109,34 @@ public interface Action<A> {
     }
 
 
-    class Fork<A> implements Action<A> {
-        final Action<A> forked;
-        final Optional<Function<Throwable, Action<Unit>>> handler;
+    class Fork<A> implements Action<Unit> {
+        final Action<A> left;
+        final Action<A> right;
 
-        public Fork(Action<A> forked, Optional<Function<Throwable, Action<Unit>>> handler) {
-            this.forked = forked;
+        public Fork(Action<A> left, Action<A> right) {
+            this.left = left;
+            this.right = right;
+        }
+
+
+        @Override
+        public Tag tag() {
+            return Tag.fork;
+        }
+    }
+
+    class Par<A,B,C> implements Action<C> {
+        final Action<A> left;
+        final Action<B> right;
+        // (Try a, Fiber b) V (Fiber a, Try b) -> Action c
+        final Function<Either<P2<Try<A>,Fiber<B>>,P2<Fiber<A>,Try<B>>>,Action<C>> handler;
+
+        public Par(Action<A> left, Action<B> right, Function<Either<P2<Try<A>, Fiber<B>>, P2<Fiber<A>, Try<B>>>, Action<C>> handler) {
+            this.left = left;
+            this.right = right;
             this.handler = handler;
         }
+
 
         @Override
         public Tag tag() {
