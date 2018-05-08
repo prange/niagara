@@ -1,10 +1,18 @@
-# niagara
-Lighweight, single threaded, really fast, perfect for EventDriven applications.
+# WIP: niagara
+Lightweight async programming for java, perfect for event-driven application. The library provides two constructs for
+putting together reactive applications. Action and Plan.
+
+An action is similar to a Future, except that it does not actually do anything. Instead you provide it to a runtime which executes it. Fast. Faster than you.
+
+A Plan is similar to a Stream, except that it does not actually do anything. Instead you provide it to a runtime and.. you get the idea.
+
+But why?
+Since Actions and Plans are just values, you can pass them around as small programs in your application. They can be combined, parallized, run in order, canceled and so on. And when you have buildt your little program you can give it to a small runtime that optimizes it and runs it for you.
 
 
 
 
-## What does "Event Driven" mean anyway?
+## What does "Event-Driven" mean anyway?
 
 In an event-driven application (EDA) input and output to the application is modelled as events.
 Events are first order citicens of the domain language used in the application. An EDA is inherently
@@ -17,20 +25,75 @@ When modelling information flow as events som very nice traits emerge.
  * State in the application can be modelled as a left fold (if this seems weird, or it this sounds like som papercut thing, keep reading...)
 
 
-## What? Single threaded?
-
-_Yes._ And no... Running a stream in a single thread is the most performant 
-and cleanest solution. No more memory that strictly neccecary is used, and no intermittent queueing of elements is done. 
-There are however a couple multithreading options available. The most performant one is connecting streams in serial, letting one
-thread handle one part of the workload at a time. Long running tasks can be split do multiple thread by an executorservice and the handed over
-to a steam again, or the stream can be split between multiple threads in a deterministic fashion. Parallell stateful computations across threads is not
-possible, and also not wanted. 
-
-For really super high speed performance use the queues from the Agrona library.
-
 
 ## Show me the code
+An Action:
+```java
+package org.kantega.niagara.action;
 
+import fj.Unit;
+import org.kantega.niagara.task.Action;
+import org.kantega.niagara.task.RTS;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
+public class ActionExample {
+
+
+    public static void main(String[] args) {
+        var unitAction = Action.run(new Println(Duration.ofSeconds(3), "One"));
+        var integerAction = Action.value(1234);
+        var mapped = integerAction.map(String::valueOf);
+        var printResult =
+          mapped.flatMap(new PrintlnCont(Duration.ofSeconds(1)));
+
+        var rts = new RTS();
+        rts.runAction(unitAction);
+        rts.runAction(printResult);
+
+    }
+
+    static class PrintlnCont implements Function<String, Action<Unit>> {
+
+        final Duration delay;
+
+        PrintlnCont(Duration delay) {
+            this.delay = delay;
+        }
+
+        @Override
+        public Action<Unit> apply(String s) {
+
+            return Action.run(new Println(delay, s));
+        }
+    }
+
+    static class Println implements Runnable {
+
+        final Duration delay;
+        public final String value;
+
+        Println(Duration delay, String value) {
+            this.delay = delay;
+            this.value = value;
+        }
+
+        @Override
+        public void run() {
+            try {
+                TimeUnit.SECONDS.sleep(delay.toSeconds());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(value);
+        }
+    }
+}
+
+```
+A plan:
 ```java
 package org.kantega.niagara.example;
 
@@ -74,29 +137,6 @@ public class Example1 {
 }
 ```
 
-
-Okay, but does this not already exist?
-
-#### java.util.Stream
-Pretty fast, no dependency, parallell processing support and even resource cleanup, albeit
-a bit clumsy. (Ever tries to close a java.util.Stream from the producer side, to make sure
-cleanup is run on the consumer side?
-
-#### reactive-streams (rxjava, akka-streams etc.)
-Reactive streams is an API this is beeng adopted by the java sdk as the streaming data api.
-Its abstraction are about `Observables` that produce values  and `Observers` that can observe them.
-A popular abstraction which is easy to understand. It lacks somewhat in resource cleanup, and
-and support for resourcelimitation is only thorugh backpressure which is handles a bit clumsily.
-There is also plenty room for error when using the api, leading to illegal or useless states.
-Rxjava is a popular implementation for java, Akka-streams is another one.
-
-#### fs2
-This is my favourite library, but it has a couple of drawbacks. It just available for scala, and
-is not as performant as i would like. The basic api is beautiful, and they can make strong guarantess that all
-resoruces are cleaned up in the correct order. Its is modeled as a state machine, so its "impossible"
-to put the stream in an illegal state. This is my got for medium length streams, for example
-processing large files, because just uses the minimum rquired resources. But since it is a state-
-machine there is a high object churn. FS2 has been a huge inspiration for Niagara.
 
 
 
