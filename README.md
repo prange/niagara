@@ -28,7 +28,7 @@ When modelling information flow as events som very nice traits emerge.
 
 ## Show me the code
 An Action:
-```
+```java
 package org.kantega.niagara.action;
 
 import fj.Unit;
