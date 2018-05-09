@@ -4,8 +4,8 @@ import fj.Unit;
 
 public class Console {
 
-    public static Action<Unit> prinln(String line){
-        return Action.run(()-> System.out.println(line));
+    public static Task<Unit> prinln(String line){
+        return Task.run(()-> System.out.println(line));
     }
 
 }
