@@ -1,14 +1,11 @@
 package org.kantega.niagara.action;
 
 import org.kantega.niagara.task.Console;
-import org.kantega.niagara.task.RTS;
 import org.kantega.niagara.task.TaskRuntime;
 
 import java.time.Duration;
 
-import static org.kantega.niagara.task.Task.fork;
-import static org.kantega.niagara.task.Task.join;
-import static org.kantega.niagara.task.Task.value;
+import static org.kantega.niagara.task.Task.*;
 
 public class TaskExample {
 

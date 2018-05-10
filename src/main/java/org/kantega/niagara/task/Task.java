@@ -22,10 +22,14 @@ public interface Task<A> {
     //TODO Fuse all sync actions on construction in subclasses
 
     static Task<Unit> run(Runnable r) {
-        return new SyncrEffect<>(() -> {
+        return get(() -> {
             r.run();
             return Unit.unit();
         });
+    }
+
+    static <A> Task<A> get(Supplier<A> s){
+        return new SyncrEffect<>(s);
     }
 
     static <A> Task<A> value(A value) {
