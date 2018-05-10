@@ -15,7 +15,7 @@ Since Actions and Plans are just values, you can pass them around as small progr
 ## What does "Event-Driven" mean anyway?
 
 In an event-driven application (EDA) input and output to the application is modelled as events.
-Events are first order citicens of the domain language used in the application. An EDA is inherently
+Events are first order citizens of the domain language used in the application. An EDA is inherently
 asynchrous, and is easy to split up and partition since internal comunication also is modelled as events.
 A very nice feture of events is that they can be queued and sent over the network. 
 
