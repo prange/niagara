@@ -26,12 +26,11 @@ public class TaskContext {
     }
 
 
-    public boolean isInterrupted() {
-        return interrupted;
-    }
-
     public <A> void enqueue(Task<A> t, Consumer<Try<A>> continuation) {
-        rt.enqueue(this, t, continuation);
+        rt.enqueue(this, t, aTry -> {
+            if (!interrupted || aTry.isThrowable()) //Errors are always passed
+                continuation.accept(aTry);
+        });
     }
 
     public <A> void schedule(Task<A> t, Consumer<Try<A>> continuation, Duration d) {

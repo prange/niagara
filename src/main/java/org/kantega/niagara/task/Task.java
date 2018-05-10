@@ -137,14 +137,9 @@ public interface Task<A> {
 
         @Override
         public void perform(TaskContext rt, Consumer<Try<B>> continuation) {
-            var cont = bindFunction;
+            var cont = bindFunction;//prevent capturing of surrounding object
             action.perform(rt,
-              aTry -> {
-                  if (!rt.isInterrupted() || aTry.isThrowable()) {
-                      Task<B> apply = cont.apply(aTry);
-                      rt.enqueue(apply, continuation);
-                  }
-              }
+              aTry -> rt.enqueue(cont.apply(aTry), continuation)
             );
 
         }
@@ -260,14 +255,12 @@ public interface Task<A> {
 
         @Override
         public void perform(TaskContext rt, Consumer<Try<C>> continuation) {
-            if (!rt.isInterrupted()) {
-                var leftC = new Canceable<>(left);
-                var rightC = new Canceable<>(right);
-                var gate = new Gate<>(handler, leftC, rightC, rt, continuation);
-                P2<TaskContext, TaskContext> branch = rt.branch();
-                branch._1().enqueue(leftC, gate::left);
-                branch._2().enqueue(rightC, gate::right);
-            }
+            var leftC = new Canceable<>(left);
+            var rightC = new Canceable<>(right);
+            var gate = new Gate<>(handler, leftC, rightC, rt, continuation);
+            P2<TaskContext, TaskContext> branch = rt.branch();
+            branch._1().enqueue(leftC, gate::left);
+            branch._2().enqueue(rightC, gate::right);
         }
     }
 
@@ -289,8 +282,7 @@ public interface Task<A> {
 
         @Override
         public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
-            if (!rt.isInterrupted())
-                continuation.accept(block.evaluate());
+            continuation.accept(block.evaluate());
         }
     }
 
@@ -312,10 +304,7 @@ public interface Task<A> {
 
         @Override
         public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
-            future.thenAccept(aTry -> {
-                if (!rt.isInterrupted() || aTry.isThrowable())
-                    continuation.accept(aTry);
-            });
+            future.thenAccept(continuation::accept);
         }
     }
 
