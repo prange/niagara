@@ -32,14 +32,14 @@ public class Gate<A, B, C> {
     public void left(Try<A> aTry) {
         if (!wasRun.getAndSet(true)) {
             Task<C> cTask = handler.apply(Either.left(P.p(aTry, bStrand)));
-            cTask.eval(rt, cont);
+            cTask.perform(rt, cont);
         }
     }
 
     public void right(Try<B> bTry) {
         if (!wasRun.getAndSet(true)) {
             Task<C> cTask = handler.apply(Either.right(P.p(aStrand, bTry)));
-            cTask.eval(rt, cont);
+            cTask.perform(rt, cont);
         }
     }
 }

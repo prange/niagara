@@ -2,92 +2,47 @@ package org.kantega.niagara.task;
 
 import fj.P;
 import fj.P2;
+import org.kantega.niagara.Try;
 
 import java.time.Duration;
+import java.util.function.Consumer;
 
-public interface TaskContext {
-    void interrupt();
+public class TaskContext {
 
-    boolean isInterrupted();
+    private boolean interrupted = false;
+    private final TaskRuntime rt;
+    private P2<TaskContext, TaskContext> children;
 
-    void enqueue(Runnable r);
+    public TaskContext(TaskRuntime rt) {
+        this.rt = rt;
+    }
 
-    void schedule(Runnable task, Duration d);
-
-    P2<TaskContext, TaskContext> branch();
-
-    class RootContext implements TaskContext {
-
-
-        private boolean interrupted = false;
-        private final TaskRuntime rt;
-        private P2<BranchedContext, BranchedContext> children;
-
-        public RootContext(TaskRuntime rt) {
-            this.rt = rt;
-        }
-
-        public void interrupt() {
-            interrupted = true;
-            if (children != null) {
-                children._1().interrupted = true;
-                children._2().interrupted = true;
-            }
-        }
-
-        @Override
-        public boolean isInterrupted() {
-            return interrupted;
-        }
-
-        public void enqueue(Runnable r) {
-            rt.enqueue(r);
-        }
-
-        public void schedule(Runnable task, Duration d) {
-            rt.schedule(task, d);
-        }
-
-        public P2<TaskContext, TaskContext> branch() {
-            children = P.p(new BranchedContext(rt), new BranchedContext(rt));
-            return children.<TaskContext>map1(i -> i).map2(i -> i);
+    public void interrupt() {
+        interrupted = true;
+        if (children != null) {
+            children._1().interrupted = true;
+            children._2().interrupted = true;
         }
     }
 
-    class BranchedContext implements TaskContext {
 
+    public boolean isInterrupted() {
+        return interrupted;
+    }
 
-        private final TaskRuntime rt;
-        private boolean interrupted = false;
+    public <A> void enqueue(Task<A> t, Consumer<Try<A>> continuation) {
+        rt.enqueue(this, t, continuation);
+    }
 
-        public BranchedContext(TaskRuntime rt) {
-            this.rt = rt;
-        }
+    public <A> void schedule(Task<A> t, Consumer<Try<A>> continuation, Duration d) {
+        rt.schedule(this, t, continuation, d);
+    }
 
-
-        @Override
-        public void interrupt() {
-            interrupted = true;
-        }
-
-        @Override
-        public boolean isInterrupted() {
-            return interrupted ;
-        }
-
-        @Override
-        public void enqueue(Runnable r) {
-            rt.enqueue(r);
-        }
-
-        @Override
-        public void schedule(Runnable task, Duration d) {
-            rt.schedule(task, d);
-        }
-
-        @Override
-        public P2<TaskContext, TaskContext> branch() {
-            return null;
-        }
+    public P2<TaskContext, TaskContext> branch() {
+        children = P.p(new TaskContext(rt), new TaskContext(rt));
+        return children.<TaskContext>map1(i -> i).map2(i -> i);
     }
 }
+
+
+

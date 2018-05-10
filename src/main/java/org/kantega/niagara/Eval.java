@@ -1,7 +1,5 @@
 package org.kantega.niagara;
 
-import fj.Unit;
-
 import java.util.function.Supplier;
 
 /**
@@ -15,19 +13,12 @@ public interface Eval<A> {
 
     Try<A> evaluate();
 
-    default Task<A> toTask(){
-        return ()->Eventually.value(evaluate());
-    }
-
     static <A> Eval<A> call(Supplier<A> supplier) {
         return () -> Try.call(supplier);
     }
 
-    static Eval<Unit> effect(Runnable r){
-        return ()-> Try.call(()->{
-            r.run();
-            return Unit.unit();
-        });
+    static <A> Eval<A> fail(Throwable t){
+        return ()->Try.fail(t);
     }
 
 }

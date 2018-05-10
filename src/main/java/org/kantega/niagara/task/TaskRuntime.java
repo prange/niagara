@@ -1,12 +1,14 @@
 package org.kantega.niagara.task;
 
 import fj.Unit;
+import org.kantega.niagara.Try;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class TaskRuntime {
@@ -22,19 +24,33 @@ public class TaskRuntime {
 
 
     public <A> void eval(Task<A> task) {
-        enqueue(() ->
-          task.eval(
-            new TaskContext.RootContext(this),
-            aTry -> aTry.doEffect(t -> eval(defaultHandler.apply(t)), a -> {})));
+        System.out.println(task.toString());
+        enqueue(
+          new TaskContext(this),
+          task,
+          aTry -> aTry.doEffect(t -> eval(defaultHandler.apply(t)), a -> {}));
     }
 
-    public <A> void enqueue(Runnable r) {
-        executorService.submit(r);
+    public <A> void enqueue(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation) {
+        executorService.submit(() -> t.perform(tc, continuation));
     }
 
-    public void schedule(Runnable r, Duration d) {
-        scheduledExecutorService.schedule(() -> executorService.submit(r), d.toMillis(), TimeUnit.MILLISECONDS);
+    public <A> void schedule(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation, Duration d) {
+        scheduledExecutorService.schedule(() -> enqueue(tc, t, continuation), d.toMillis(), TimeUnit.MILLISECONDS);
     }
 
+
+    public void shutdown() {
+        try {
+            scheduledExecutorService.awaitTermination(1, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
+            executorService.awaitTermination(1, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
 
 }

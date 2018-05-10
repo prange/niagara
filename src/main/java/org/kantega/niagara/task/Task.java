@@ -3,6 +3,7 @@ package org.kantega.niagara.task;
 import fj.P2;
 import fj.Unit;
 import fj.data.Either;
+import org.kantega.niagara.Eval;
 import org.kantega.niagara.Try;
 
 import java.time.Duration;
@@ -17,9 +18,7 @@ import static org.kantega.niagara.task.Util.*;
 
 public interface Task<A> {
 
-    void eval(TaskContext rt, Consumer<Try<A>> continuation);
-
-    //TODO Fuse all sync actions on construction in subclasses
+    void perform(TaskContext rt, Consumer<Try<A>> continuation);
 
     static Task<Unit> run(Runnable r) {
         return get(() -> {
@@ -28,8 +27,12 @@ public interface Task<A> {
         });
     }
 
-    static <A> Task<A> get(Supplier<A> s){
-        return new SyncrEffect<>(s);
+    static <A> Task<A> get(Supplier<A> s) {
+        return evaluate(Eval.call(s));
+    }
+
+    static <A> Task<A> evaluate(Eval<A> a) {
+        return new SyncrEffect<>(a);
     }
 
     static <A> Task<A> value(A value) {
@@ -107,6 +110,9 @@ public interface Task<A> {
         return new Delayed<>(Either.right(duration), this);
     }
 
+    default Task<A> onFinish(Task<?> cleanup) {
+        return new Onfinish<>(this, cleanup);
+    }
 
     // *** Implementations ***
 
@@ -130,8 +136,17 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<B>> continuation) {
-            action.eval(rt, aTry -> rt.enqueue(() -> bindFunction.apply(aTry).eval(rt, continuation)));
+        public void perform(TaskContext rt, Consumer<Try<B>> continuation) {
+            var cont = bindFunction;
+            action.perform(rt,
+              aTry -> {
+                  if (!rt.isInterrupted() || aTry.isThrowable()) {
+                      Task<B> apply = cont.apply(aTry);
+                      rt.enqueue(apply, continuation);
+                  }
+              }
+            );
+
         }
     }
 
@@ -152,7 +167,7 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
             continuation.accept(Try.fail(t));
         }
 
@@ -184,7 +199,7 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
             continuation.accept(Try.value(value));
         }
 
@@ -214,9 +229,9 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<Unit>> continuation) {
-            rt.enqueue(() -> left.eval(rt, aTry -> {}));
-            rt.enqueue(() -> right.eval(rt, bTry -> {}));
+        public void perform(TaskContext rt, Consumer<Try<Unit>> continuation) {
+            rt.enqueue(left, aTry -> {});
+            rt.enqueue(right, bTry -> {});
             continuation.accept(Try.value(Unit.unit()));
         }
     }
@@ -244,23 +259,23 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<C>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<C>> continuation) {
             if (!rt.isInterrupted()) {
                 var leftC = new Canceable<>(left);
                 var rightC = new Canceable<>(right);
                 var gate = new Gate<>(handler, leftC, rightC, rt, continuation);
                 P2<TaskContext, TaskContext> branch = rt.branch();
-                branch._1().enqueue(() -> leftC.eval(rt, gate::left));
-                branch._2().enqueue(() -> rightC.eval(rt, gate::right));
+                branch._1().enqueue(leftC, gate::left);
+                branch._2().enqueue(rightC, gate::right);
             }
         }
     }
 
     class SyncrEffect<A> implements Task<A> {
 
-        final Supplier<A> block;
+        final Eval<A> block;
 
-        public SyncrEffect(Supplier<A> block) {
+        public SyncrEffect(Eval<A> block) {
             this.block = block;
         }
 
@@ -273,9 +288,9 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
             if (!rt.isInterrupted())
-                continuation.accept(Try.call(block));
+                continuation.accept(block.evaluate());
         }
     }
 
@@ -296,9 +311,9 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
             future.thenAccept(aTry -> {
-                if (!rt.isInterrupted())
+                if (!rt.isInterrupted() || aTry.isThrowable())
                     continuation.accept(aTry);
             });
         }
@@ -323,11 +338,11 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
-            rt.schedule(() -> {
-                if (!rt.isInterrupted())
-                    delayedAction.eval(rt, continuation);
-            }, instantOrDelay.either(i -> Duration.between(Instant.now(), i), d -> d));
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
+            rt.schedule(
+              delayedAction,
+              continuation,
+              instantOrDelay.either(i -> Duration.between(Instant.now(), i), d -> d));
         }
     }
 
@@ -342,20 +357,55 @@ public interface Task<A> {
         }
 
         @Override
-        public void eval(TaskContext rt, Consumer<Try<A>> continuation) {
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
             cancel.thenAccept(t -> rt.interrupt());
-            if (!rt.isInterrupted())
-                task.eval(rt, complete(callback).andThen(continuation));
+            task.perform(rt, aTry -> {
+                callback.complete(aTry);
+                continuation.accept(aTry);
+            });
         }
 
         @Override
         public Task<Unit> interrupt() {
-            return Task.run(() -> cancel.complete(true));
+            var i = new Interrupt(cancel);
+            return Task.run(i::interrupt);
         }
 
         @Override
         public Task<A> attach() {
             return new Task.Callback<>(callback);
+        }
+
+        static class Interrupt {
+            final CompletableFuture<Boolean> c;
+
+            Interrupt(CompletableFuture<Boolean> c) {
+                this.c = c;
+            }
+
+            public void interrupt() {
+                c.complete(true);
+            }
+
+        }
+    }
+
+    class Onfinish<A> implements Task<A> {
+
+        final Task<A> wrappedTask;
+        final Task<?> cleanupTask;
+
+        public Onfinish(Task<A> wrappedTask, Task<?> cleanupTask) {
+            this.wrappedTask = wrappedTask;
+            this.cleanupTask = cleanupTask;
+        }
+
+        @Override
+        public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
+            rt.enqueue(wrappedTask, aTry -> {
+                rt.enqueue(cleanupTask, unitTry -> {/*ignore output from cleanup*/});
+                continuation.accept(aTry);
+            });
         }
     }
 }

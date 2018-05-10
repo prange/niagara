@@ -11,11 +11,11 @@ public class TaskExample {
 
     public static void main(String[] args) {
         var unitAction =
-          Console.prinln("One");
+          Console.outputln("One");
 
         var stringAction =
           value("string")
-            .delay(Duration.ofSeconds(10));
+            .delay(Duration.ofSeconds(2));
 
         var integerAction =
           value(1234);
@@ -27,7 +27,7 @@ public class TaskExample {
           join(stringAction, mapped, (s1, s2) -> s1 + " " + s2);
 
         var printResult =
-          joined.flatMap(Console::prinln);
+          joined.flatMap(Console::outputln);
 
         var rts = new TaskRuntime();
         rts.eval(fork(printResult, unitAction));

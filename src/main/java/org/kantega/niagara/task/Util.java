@@ -6,6 +6,6 @@ import java.util.function.Consumer;
 public class Util {
 
     static <A> Consumer<A> complete(CompletableFuture<A> cf){
-        return cf::complete;
+        return a->cf.complete(a);
     }
 }
