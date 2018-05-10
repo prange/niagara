@@ -1,13 +1,13 @@
 # WIP: niagara
 Lightweight async programming for java, perfect for event-driven application. The library provides two constructs for
-putting together reactive applications. Action and Plan.
+putting together reactive applications. Task and Plan.
 
-An action is similar to a Future, except that it does not actually do anything. Instead you provide it to a runtime which executes it. Fast. Faster than you.
+A Task is similar to a Future, except that it does not actually do anything. Instead you provide it to a runtime which executes it. Fast. Faster than you.
 
 A Plan is similar to a Stream, except that it does not actually do anything. Instead you provide it to a runtime and.. you get the idea.
 
 But why?
-Since Actions and Plans are just values, you can pass them around as small programs in your application. They can be combined, parallized, run in order, canceled and so on. And when you have buildt your little program you can give it to a small runtime that optimizes it and runs it for you.
+Since Tasks and Plans are just values, you can pass them around as small programs in your application. They can be combined, parallized, run in order, canceled and so on. And when you have buildt your little program you can give it to a small runtime that optimizes it and runs it for you.
 
 
 
@@ -27,26 +27,32 @@ When modelling information flow as events som very nice traits emerge.
 
 
 ## Show me the code
-An Action:
+A Task:
 ```java
-package org.kantega.niagara.action;
+public class TaskExample {
 
-import org.kantega.niagara.task.Action;
-import org.kantega.niagara.task.Console;
-import org.kantega.niagara.task.RTS;
-
-public class ActionExample {
     public static void main(String[] args) {
-        var unitAction = Console.prinln("One");
-        var integerAction = Action.value(1234);
-        var mapped = integerAction.map(String::valueOf);
+        var unitTask =
+          Console.prinln("One");
+
+        var stringTask =
+          value("string")
+            .delay(Duration.ofSeconds(10));
+
+        var integerTask =
+          value(1234);
+
+        var mapped =
+          integerTask.map(String::valueOf);
+
+        var joined =
+          join(stringTask, mapped, (s1, s2) -> s1 + " " + s2);
+
         var printResult =
-          mapped.flatMap(Console::prinln);
+          joined.flatMap(Console::prinln);
 
-        var rts = new RTS();
-        rts.runAction(unitAction);
-        rts.runAction(printResult);
-
+        var rts = new TaskRuntime();
+        rts.eval(fork(printResult, unitTask));
     }
 }
 

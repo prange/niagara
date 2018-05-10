@@ -34,7 +34,5 @@ public class TaskExample {
 
         var rts = new TaskRuntime();
         rts.eval(fork(printResult, unitAction));
-
-
     }
 }
