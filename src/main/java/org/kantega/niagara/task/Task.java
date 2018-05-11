@@ -365,6 +365,15 @@ public interface Task<A> {
             return new Task.Callback<>(callback);
         }
 
+        @Override
+        public String toString() {
+            return "Canceable{" +
+              task +
+              ", " + cancel +
+              ", " + callback +
+              '}';
+        }
+
         static class Interrupt {
             final CompletableFuture<Boolean> c;
 
@@ -391,7 +400,7 @@ public interface Task<A> {
 
         @Override
         public void perform(TaskContext rt, Consumer<Try<A>> continuation) {
-            rt.enqueue(wrappedTask, aTry -> {
+            wrappedTask.perform(rt, aTry -> {
                 rt.enqueue(cleanupTask, unitTry -> {/*ignore output from cleanup*/});
                 continuation.accept(aTry);
             });

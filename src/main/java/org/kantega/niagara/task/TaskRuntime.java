@@ -24,7 +24,6 @@ public class TaskRuntime {
 
 
     public <A> void eval(Task<A> task) {
-        System.out.println(task.toString());
         enqueue(
           new TaskContext(this),
           task,
