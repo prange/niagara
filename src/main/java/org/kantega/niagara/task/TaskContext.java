@@ -10,10 +10,10 @@ import java.util.function.Consumer;
 public class TaskContext {
 
     private boolean interrupted = false;
-    private final TaskRuntime rt;
+    private final TaskExecutor rt;
     private P2<TaskContext, TaskContext> children;
 
-    public TaskContext(TaskRuntime rt) {
+    public TaskContext(TaskExecutor rt) {
         this.rt = rt;
     }
 

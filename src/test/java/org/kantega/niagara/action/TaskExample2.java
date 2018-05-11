@@ -3,7 +3,7 @@ package org.kantega.niagara.action;
 import org.kantega.niagara.Eval;
 import org.kantega.niagara.task.Console;
 import org.kantega.niagara.task.Task;
-import org.kantega.niagara.task.TaskRuntime;
+import org.kantega.niagara.task.TaskExecutor;
 
 import java.time.Duration;
 
@@ -35,7 +35,7 @@ public class TaskExample2 {
           caught.flatMap(Console::outputln);
 
 
-        var rts = new TaskRuntime();
+        var rts = new TaskExecutor();
         rts.eval(printResult);
     }
 

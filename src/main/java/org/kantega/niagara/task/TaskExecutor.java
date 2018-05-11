@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class TaskRuntime {
+public class TaskExecutor {
 
     final ExecutorService executorService =
       Executors.newFixedThreadPool(2);
