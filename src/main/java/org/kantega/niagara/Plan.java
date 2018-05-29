@@ -4,12 +4,12 @@ import fj.P;
 import fj.P2;
 import fj.Unit;
 import org.kantega.niagara.op.*;
+import org.kantega.niagara.state.Scope;
 import org.kantega.niagara.state.Instruction;
-import org.kantega.niagara.state.TopLevelScope;
+import org.kantega.niagara.task.Task;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
 
 /**
@@ -75,7 +75,7 @@ public class Plan<A> {
      * @return
      */
     public Plan<A> join(Plan<A> other) {
-        return plan(Instruction.join(instruction, other.instruction));
+        return plan(Instruction.merge(instruction, other.instruction));
     }
 
     /**
@@ -135,18 +135,6 @@ public class Plan<A> {
         return append(new FlatMapOp<>(f));
     }
 
-    /**
-     * Transforms elements of the plans into a new stream, and binding them together.
-     * The resulting plans are compiled and run with their own scopes, wich might cause some overhead. If this i a
-     * frequent operation consider flatMap instead for high performance applications.
-     *
-     * @param f   the mapping function
-     * @param <B> the type of the output
-     * @return a new plan
-     */
-    public <B> Plan<B> bind(Function<A, Plan<B>> f) {
-        return append(new BindOp<A, B>(f));
-    }
 
     /**
      * Evaluates a (possibly sideeffecting) computation in this thread, outputing the result.
@@ -157,6 +145,17 @@ public class Plan<A> {
      */
     public <B> Plan<B> eval(Function<A, Eval<B>> f) {
         return append(new EvalOp<>(f));
+    }
+
+    /**
+     * Evaluates a (possibly sideeffecting and asynchronous) computation, outputing the result.
+     *
+     * @param f   the evalution
+     * @param <B> the result of the evaluation
+     * @return a new plan.
+     */
+    public <B> Plan<B> evalTask(Function<A, Task<B>> f) {
+        return null;
     }
 
     /**
@@ -287,9 +286,29 @@ public class Plan<A> {
     }
 
 
+    public Task<Unit> compile() {
+        return compile(instruction);
+    }
 
-    public void run(){
-        new TopLevelScope<>(instruction,a->{},WaitStrategy.nowait).loop();
+    private static <O, R> Task<Unit> compile(Instruction<O, R> instruction) {
+        return (rt, cont) -> {
+            try {
+
+                var s = Scope.<O>scope(a -> {}, d -> {});
+                var eval = instruction.eval(s);
+
+                eval
+                  .perform(rt, eitherTry ->
+                    eitherTry.doEffect(
+                      t -> cont.accept(Try.fail(t)),
+                      either -> {
+                          either.left().foreachDoEffect(u -> cont.accept(Try.value(Unit.unit())));
+                          either.right().foreachDoEffect(instr -> rt.enqueue(compile(instr), cont));
+                      }));
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        };
     }
 
 }

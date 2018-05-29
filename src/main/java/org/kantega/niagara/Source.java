@@ -1,6 +1,6 @@
 package org.kantega.niagara;
 
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 import org.kantega.niagara.source.IterableSource;
 import org.kantega.niagara.source.NilSource;
 import org.kantega.niagara.source.QueueSource;
@@ -11,7 +11,7 @@ import java.util.Queue;
 
 public interface Source<O> {
 
-    Emitter build(Sink<O> sink);
+    Emitter build(Scope<O> sink);
 
     static <O> Source<O> single(O value) {
         return new SingleValueSource<>(value);

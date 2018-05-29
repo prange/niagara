@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 public class ChainOp<A, B, C> implements StageOp<A, C> {
 
@@ -18,7 +18,7 @@ public class ChainOp<A, B, C> implements StageOp<A, C> {
     }
 
     @Override
-    public Sink<A> build(Sink<C> input) {
+    public Scope<A> build(Scope<C> input) {
         return op1.build(op2.build(input));
     }
 

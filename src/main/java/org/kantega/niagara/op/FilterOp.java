@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.sink.FilteringConsumer;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.Predicate;
 
@@ -14,7 +14,7 @@ public class FilterOp<A> implements KeepTypeOp<A> {
     }
 
     @Override
-    public Sink<A> build(Sink<A> input) {
-        return Sink.sink(new FilteringConsumer<>(predicate, input.consumer), input.done.comap(this));
+    public Scope<A> build(Scope<A> input) {
+        return Scope.scope(new FilteringConsumer<>(predicate, input.consumer), input.done.comap(this));
     }
 }

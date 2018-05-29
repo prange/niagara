@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.sink.FlatMapConsumer;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.Function;
 
@@ -19,8 +19,8 @@ public class FlatMapOp<A, B> implements StageOp<A, B> {
     }
 
     @Override
-    public Sink<A> build(Sink<B> input) {
-        return Sink.sink(
+    public Scope<A> build(Scope<B> input) {
+        return Scope.scope(
           new FlatMapConsumer<>(function, input.consumer),
           input.done.comap(this));
     }

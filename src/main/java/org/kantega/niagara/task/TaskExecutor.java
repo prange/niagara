@@ -4,6 +4,7 @@ import fj.Unit;
 import org.kantega.niagara.Try;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -28,11 +29,34 @@ public class TaskExecutor {
     }
 
     public <A> void enqueue(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation) {
-        executorService.submit(() -> t.perform(tc, continuation));
+        executorService.submit(() -> {
+            try {
+                t.perform(tc, continuation);
+            } catch (Throwable e) {
+                continuation.accept(Try.fail(e));
+            }
+        });
     }
 
-    public <A> void schedule(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation, Duration d) {
-        scheduledExecutorService.schedule(() -> enqueue(tc, t, continuation), d.toMillis(), TimeUnit.MILLISECONDS);
+    public <A> CompletableFuture<Unit> enqueueStage(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation) {
+        var cf = new CompletableFuture<Unit>();
+        executorService.submit(() -> {
+            try {
+                t.perform(tc, continuation);
+                cf.complete(Unit.unit());
+            } catch (Throwable e) {
+                continuation.accept(Try.fail(e));
+            }
+        });
+        return cf;
+    }
+
+    public <A> void schedule(TaskContext tc, Task<A> t, Consumer<Try<A>> continuation, Instant at) {
+        Duration d = Duration.between(Instant.now(), at);
+        if (d.isNegative())
+            enqueue(tc, t, continuation);
+        else
+            scheduledExecutorService.schedule(() -> enqueue(tc, t, continuation), d.toMillis(), TimeUnit.MILLISECONDS);
     }
 
 

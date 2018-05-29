@@ -2,9 +2,11 @@ package org.kantega.niagara.task;
 
 import fj.P;
 import fj.P2;
+import fj.Unit;
 import org.kantega.niagara.Try;
 
-import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class TaskContext {
@@ -25,16 +27,24 @@ public class TaskContext {
         }
     }
 
+    public boolean isInterrupted(){
+        return interrupted;
+    }
 
     public <A> void enqueue(Task<A> t, Consumer<Try<A>> continuation) {
         rt.enqueue(this, t, aTry -> {
             if (!interrupted || aTry.isThrowable()) //Errors are always passed
                 continuation.accept(aTry);
+            else
+                continuation.accept(Try.fail(new InterruptedException("The task "+t.toString()+" was interrupted")));
         });
     }
 
-    public <A> void schedule(Task<A> t, Consumer<Try<A>> continuation, Duration d) {
-        rt.schedule(this, t, continuation, d);
+    public <A> CompletableFuture<Unit> enqueueStage(Task<A> t, Consumer<Try<A>> continuation) {
+        return rt.enqueueStage(this,t,continuation);
+    }
+    public <A> void schedule(Task<A> t, Consumer<Try<A>> continuation, Instant i) {
+        rt.schedule(this, t, continuation, i);
     }
 
     public P2<TaskContext, TaskContext> branch() {

@@ -1,85 +1,84 @@
 package org.kantega.niagara.state;
 
 import fj.Unit;
-import org.kantega.niagara.Emitter;
-import org.kantega.niagara.Interrupt;
+import fj.data.Either;
+import org.kantega.niagara.PartialFunction;
 import org.kantega.niagara.Source;
 import org.kantega.niagara.Try;
 import org.kantega.niagara.op.NoOp;
 import org.kantega.niagara.op.StageOp;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.task.Task;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static fj.data.Either.*;
+
 public interface Instruction<O, R> {
 
-    Step<R> eval(Scope<O> scope);
+    Task<Either<R, Instruction<O, R>>> eval(Scope<O> outer);
 
 
-    static <O, R> Instruction<O, R> pure(R value) {
+    static <O, R> Instruction<O, R> pure(Task<R> value) {
         return new Pure<>(value);
     }
 
-    static <O, R> Instruction<O, R> aquire(Supplier<R> resource) {
-        return new Aquire<>(resource);
-    }
-
-    static <O, R> Instruction<O, Unit> release(R r, Consumer<R> cleanup) {
-        return new Release<>(r, cleanup);
-    }
-
-
     static <O, R> Instruction<O, R> fail(Throwable t) {
-        return new Fail<>(t);
+        return pure(Task.fail(t));
     }
 
     static <O> Instruction<O, Unit> emit(Source<O> source) {
-        return new Compile<>(source, new NoOp<>());
+        return new Drain<>(source, new NoOp<>());
     }
 
+    static <O> Instruction<O, Unit> merge(Instruction<O, ?> left, Instruction<O, ?> right) {
+        return new Merge<>(left, right);
+    }
 
-    default <O2> Instruction<O2, Unit> transform(StageOp<O, O2> op) {
-        return new EncloseCompile<>(this.map(__ -> Unit.unit()), op);
+    default <O2> Instruction<O2, R> transform(StageOp<O, O2> op) {
+        return new Transform<>(this, op);
     }
 
     default <R2> Instruction<O, R2> map(Function<R, R2> function) {
-        return bind(v -> v.fold(Instruction::fail, s -> pure(function.apply(s))));
+        return bind(v -> v.fold(Instruction::fail, s -> pure(Task.value(function.apply(s)))));
     }
 
     default <R2> Instruction<O, R2> bind(Function<Try<R>, Instruction<O, R2>> function) {
         return new BindInstr<>(this, function);
     }
 
-    default Instruction<O, Unit> append(Supplier<Instruction<O, Unit>> other) {
-        return new Append<>(this.map(__->Unit.unit()), other);
+    default <RR> Instruction<O, RR> append(Supplier<Instruction<O, RR>> other) {
+        return new Append<>(this, other);
     }
 
-    default Instruction<O, Unit> repeat() {
-        return new Interruptable<>(append(this::repeat));
+    default Instruction<O, R> repeat() {
+        return append(this::repeat);
     }
 
     default Instruction<O, R> handle(Function<Throwable, Instruction<O, R>> handler) {
-        return bind(rTry -> rTry.fold(handler::apply, Instruction::<O, R>pure));
+        return bind(rTry -> rTry.fold(handler::apply, r -> pure(Task.value(r))));
     }
 
-    static <O> Instruction<O, Unit> join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
-        return new Join<>(left, right);
+    default <E extends Throwable> Instruction<O,R> handle(Class<E> exceptionType, Function<E,Instruction<O,R>> handler){
+        return handle(PartialFunction.<Throwable,Instruction<O,R>,E>onType(exceptionType,handler).orElse(Instruction::fail));
     }
 
+    default Instruction<O,R> delay(Duration delay){
+        return new Timed<>(this,delay);
+    }
 
     class Pure<O, R> implements Instruction<O, R> {
-        final R value;
+        final Task<R> value;
 
-        public Pure(R value) {
+        public Pure(Task<R> value) {
             this.value = value;
         }
 
         @Override
-        public Step<R> eval(Scope<O> scope) {
-            return Step.done(value);
+        public Task<Either<R, Instruction<O, R>>> eval(Scope<O> c) {
+            return value.map(Either::left);
         }
     }
 
@@ -94,8 +93,12 @@ public interface Instruction<O, R> {
         }
 
 
-        public Step<R2> eval(Scope<O> ctx) {
-            return instr.eval(ctx).bindTry(rTry -> function.apply(rTry).eval(ctx));
+        public Task<Either<R2, Instruction<O, R2>>> eval(Scope<O> c) {
+            return instr.eval(c).map(either ->
+              either.either(
+                r -> right(function.apply(Try.value(r))),
+                next -> right(next.bind(function))
+              ));
         }
 
         @Override
@@ -113,137 +116,118 @@ public interface Instruction<O, R> {
         }
     }
 
-    class Append<O> implements Instruction<O, Unit> {
-        final Instruction<O, Unit> first;
-        final Supplier<Instruction<O, Unit>> next;
+    class Append<O, R> implements Instruction<O, R> {
+        final Instruction<O, ?> first;
+        final Supplier<Instruction<O, R>> next;
 
-        public Append(Instruction<O, Unit> first, Supplier<Instruction<O, Unit>> next) {
+        public Append(Instruction<O, ?> first, Supplier<Instruction<O, R>> next) {
             this.first = first;
             this.next = next;
         }
 
         @Override
-        public Step<Unit> eval(Scope<O> scope) {
-            return
-              first
-                .eval(scope)
-                .bind(__ ->
-                  next.get().eval(scope.reset()));
+        public Task<Either<R, Instruction<O, R>>> eval(Scope<O> c) {
+            return first.eval(c).map(either ->
+              either.either(
+                r -> right(next.get()),
+                n -> right(n.append(next))
+              )
+            );
         }
     }
 
-    class Interruptable<O> implements Instruction<O, Unit> {
-        final Instruction<O, Unit> instruction;
 
-        public Interruptable(Instruction<O, Unit> instruction) {
-            this.instruction = instruction;
-        }
+    class Merge<O> implements Instruction<O, Unit> {
+        final Instruction<O, ?> first;
+        final Instruction<O, ?> second;
 
-        @Override
-        public Step<Unit> eval(Scope<O> scope) {
-            return new Step.InterruptingStep<>(scope,instruction.eval(InnerScope.wrap(scope)));
-        }
-    }
-
-    class Join<O> implements Instruction<O, Unit> {
-        final Instruction<O, Unit> first;
-        final Instruction<O, Unit> second;
-
-        public Join(Instruction<O, Unit> left, Instruction<O, Unit> right) {
+        public Merge(Instruction<O, ?> left, Instruction<O, ?> right) {
             this.first = left;
             this.second = right;
         }
 
 
         @Override
-        public Step<Unit> eval(Scope<O> scope) {
-            return null;
+        public Task<Either<Unit, Instruction<O, Unit>>> eval(Scope<O> c) {
+            return first.eval(c).map(either ->
+              either.either(
+                r -> right(second.map(o -> Unit.unit())),
+                cont -> right(merge(second, cont))
+              )
+            );
         }
     }
 
 
-    class Fail<O, R> implements Instruction<O, R> {
-
-        final Throwable t;
-
-        public Fail(Throwable t) {
-            this.t = t;
-        }
-
-
-        @Override
-        public Step<R> eval(Scope<O> scope) {
-            return Step.fail(t);
-        }
-    }
-
-    class Compile<O, O2> implements Instruction<O2, Unit> {
+    class Drain<O, O2> implements Instruction<O2, Unit> {
         final Source<O> source;
         final StageOp<O, O2> stages;
 
-        public Compile(Source<O> source, StageOp<O, O2> stages) {
+        public Drain(Source<O> source, StageOp<O, O2> stages) {
             this.source = source;
             this.stages = stages;
         }
 
-        @Override
-        public Step<Unit> eval(Scope<O2> scope) {
-            return Step.cont(() -> new Emit<>(stages.apply(source)).eval(scope));
+        public Task<Either<Unit, Instruction<O2, Unit>>> eval(Scope<O2> c) {
+            return (rt, cont) -> {
+                Source<O2> s2 = stages.apply(source);
+                var running = new AtomicBoolean(true);
+                var emitter = s2.build(Scope.scope(c.consumer, d -> {
+                    running.set(false);
+                    c.done.done(d);
+                }));
+                while (c.isRunning() && running.get()) {
+                    emitter.emit();
+                }
+                cont.accept(Try.value(left(Unit.unit())));
+            };
+
         }
 
         @Override
-        public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
-            return new Compile<>(source, stages.fuse(op));
+        public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> t) {
+            return new Drain<>(source,stages.fuse(t));
         }
 
         @Override
         public String toString() {
-            return "Compile{" +
+            return "Emit{" +
               "source=" + source +
-              ", stages=" + stages +
               '}';
         }
     }
 
-    class EncloseCompile<O, O2> implements Instruction<O2, Unit> {
-
-        final Instruction<O, Unit> inner;
-        final StageOp<O, O2> stages;
-
-        public EncloseCompile(Instruction<O, Unit> inner, StageOp<O, O2> stages) {
-            this.inner = inner;
-            this.stages = stages;
-        }
-
-        @Override
-        public Step<Unit> eval(Scope<O2> outerScope) {
-            return new Step.InterruptingStep<>(outerScope, inner.eval(new InnerScope<>(stages, outerScope)));
-        }
-
-        @Override
-        public <O21> Instruction<O21, Unit> transform(StageOp<O2, O21> op) {
-            return new EncloseCompile<>(inner, stages.fuse(op));
-        }
-
-        @Override
-        public String toString() {
-            return "EncloseCompile{" +
-              "inner=" + inner +
-              ", stages=" + stages +
-              '}';
-        }
-    }
-
-    class Emit<O> implements Instruction<O, Unit> {
+    class Take<O> implements Instruction<O, Unit> {
         final Source<O> source;
+        final int max;
 
-        public Emit(Source<O> source) {
+        public Take(Source<O> source, int max) {
             this.source = source;
+            this.max = max;
         }
 
-        public Step<Unit> eval(Scope<O> loop) {
-            return Step.done(source.build(loop.sink()))
-              .bind(emitter -> new Step.EmittingStep<>(emitter, loop));
+        public Task<Either<Unit, Instruction<O, Unit>>> eval(Scope<O> c) {
+            return (rt, cont) -> {
+                try {
+                    var done = new AtomicBoolean(false);
+                    var empty = false;
+                    var emitter = source.build(Scope.scope(c.consumer, d -> {
+                        done.set(true);
+                        c.done.done(d);
+                    }));
+                    var count = 0;
+                    while (c.isRunning() && !done.get() && count++ < max && !empty) {
+                        empty = emitter.emit();
+                    }
+
+                    if (done.get())
+                        cont.accept(Try.value(left(Unit.unit())));
+                    else
+                        cont.accept(Try.value(right(new Take<>(source, max))));
+                } catch (Throwable t) {
+                    cont.accept(Try.fail(t));
+                }
+            };
 
         }
 
@@ -256,40 +240,46 @@ public interface Instruction<O, R> {
         }
     }
 
+    class Transform<O, O2, R> implements Instruction<O2, R> {
 
-    class Aquire<O, R> implements Instruction<O, R> {
+        final Instruction<O, R> wrapped;
+        final StageOp<O, O2> op;
 
-        final Supplier<R> resource;
-
-        public Aquire(Supplier<R> resource) {
-            this.resource = resource;
-        }
-
-
-        @Override
-        public Step<R> eval(Scope<O> scope) {
-            return Step.trycatch(resource);
-        }
-    }
-
-    class Release<O, R> implements Instruction<O, Unit> {
-
-        final R resource;
-        final Consumer<R> cleanup;
-
-        public Release(R resource, Consumer<R> cleanup) {
-            this.resource = resource;
-            this.cleanup = cleanup;
+        public Transform(Instruction<O, R> wrapped, StageOp<O, O2> op) {
+            this.wrapped = wrapped;
+            this.op = op;
         }
 
         @Override
-        public Step<Unit> eval(Scope<O> scope) {
-            return Step.cont(() -> {
-                cleanup.accept(resource);
-                return Step.done(Unit.unit());
-            });
+        public Task<Either<R, Instruction<O2, R>>> eval(Scope<O2> outer) {
+            return (rt, cont) -> {
+                var wrappedContext = rt.branch()._1();
+                wrapped
+                  .eval(op.build(outer))
+                  .map(either -> either.right().map(next -> next.transform(op)))
+                  .perform(wrappedContext, cont);
+            };
+        }
+
+        @Override
+        public <O21> Instruction<O21, R> transform(StageOp<O2, O21> t) {
+            return new Transform<>(wrapped,op.fuse(t));
         }
     }
 
+    class Timed<O,R> implements Instruction<O,R>{
 
+        final Instruction<O,R> delayed;
+        final Duration duration;
+
+        public Timed(Instruction<O, R> delayed, Duration duration) {
+            this.delayed = delayed;
+            this.duration = duration;
+        }
+
+        @Override
+        public Task<Either<R, Instruction<O, R>>> eval(Scope<O> outer) {
+            return delayed.eval(outer).delay(duration);
+        }
+    }
 }

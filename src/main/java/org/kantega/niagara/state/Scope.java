@@ -1,20 +1,40 @@
 package org.kantega.niagara.state;
 
-import org.kantega.niagara.sink.Sink;
 import org.kantega.niagara.source.Done;
 
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
-public interface Scope<O> {
+public class Scope<O> {
 
-    Sink<O> sink();
+    public final Consumer<O> consumer;
+    public final Done<O> done;
+    private boolean running;
 
-    <T> Step<T> wait(Supplier<Step<T>> next);
+    private Scope(Consumer<O> consumer, Done<O> done) {
+        this.consumer = consumer;
+        this.running = true;
+        this.done = done;
+    }
 
-    <T> Step<T> resetWait(Supplier<Step<T>> next);
 
-    boolean isRunning();
+    public static <A> Scope<A> scope(Consumer<A> consumer, Done<A> done) {
+        return new Scope<>(consumer, done);
+    }
 
-    Scope<O> reset();
+    public Scope<O> onDone(Runnable action) {
+        return scope(consumer, d -> {
+            action.run();
+            done.done(d);
+        });
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+
+    public void halt() {
+        running = false;
+    }
+
 }

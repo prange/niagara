@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.sink.MapWithStateSink;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.BiFunction;
 
@@ -17,7 +17,7 @@ public class MapWithStateOp<S,A> implements StageOp<A,S> {
 
 
     @Override
-    public Sink<A> build(Sink<S> input) {
-        return Sink.sink(new MapWithStateSink<>(initState, mapFunction,input.consumer),input.done.comap(this));
+    public Scope<A> build(Scope<S> input) {
+        return Scope.scope(new MapWithStateSink<>(initState, mapFunction,input.consumer),input.done.comap(this));
     }
 }

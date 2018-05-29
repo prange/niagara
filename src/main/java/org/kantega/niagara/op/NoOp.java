@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 public class NoOp<A> implements KeepTypeOp<A> {
 
@@ -10,7 +10,7 @@ public class NoOp<A> implements KeepTypeOp<A> {
     }
 
     @Override
-    public Sink<A> build(Sink<A> input) {
+    public Scope<A> build(Scope<A> input) {
         return input;
     }
 }

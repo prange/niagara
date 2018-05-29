@@ -110,6 +110,10 @@ public interface Task<A> {
         return new Delayed<>(Either.right(duration), this);
     }
 
+    default Task<A> delay(Instant instant) {
+        return new Delayed<>(Either.left(instant), this);
+    }
+
     default Task<A> onFinish(Task<?> cleanup) {
         return new Onfinish<>(this, cleanup);
     }
@@ -141,7 +145,6 @@ public interface Task<A> {
             action.perform(rt,
               aTry -> rt.enqueue(cont.apply(aTry), continuation)
             );
-
         }
     }
 
@@ -331,7 +334,7 @@ public interface Task<A> {
             rt.schedule(
               delayedAction,
               continuation,
-              instantOrDelay.either(i -> Duration.between(Instant.now(), i), d -> d));
+              instantOrDelay.either(i -> i, d -> Instant.now().plus(d)));
         }
     }
 

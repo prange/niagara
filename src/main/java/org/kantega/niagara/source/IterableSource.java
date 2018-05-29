@@ -2,7 +2,7 @@ package org.kantega.niagara.source;
 
 import org.kantega.niagara.Emitter;
 import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.Iterator;
 
@@ -14,7 +14,7 @@ public class IterableSource<O> implements Source<O> {
     }
 
     @Override
-    public Emitter build(Sink<O> sink) {
+    public Emitter build(Scope<O> sink) {
         Iterator<O> i = iterable.iterator();
         return () -> {
             if (i.hasNext())

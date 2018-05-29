@@ -2,7 +2,7 @@ package org.kantega.niagara.op;
 
 import org.kantega.niagara.Eval;
 import org.kantega.niagara.sink.EvaluatingConsumer;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.Function;
 
@@ -16,8 +16,8 @@ public class EvalOp<A, B> implements StageOp<A, B> {
 
 
     @Override
-    public Sink<A> build(Sink<B> input) {
-        return Sink.sink(
+    public Scope<A> build(Scope<B> input) {
+        return Scope.scope(
           new EvaluatingConsumer<>(evalFunction, input.consumer, input.done),
           input.done.comap(this));
     }

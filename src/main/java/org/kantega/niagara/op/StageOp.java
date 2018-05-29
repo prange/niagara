@@ -1,7 +1,7 @@
 package org.kantega.niagara.op;
 
 import org.kantega.niagara.Source;
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.Function;
 
@@ -22,7 +22,7 @@ public interface StageOp<A, B> extends Function<Source<A>, Source<B>> {
     }
 
 
-    Sink<A> build(Sink<B> next);
+    Scope<A> build(Scope<B> next);
 
 
 }

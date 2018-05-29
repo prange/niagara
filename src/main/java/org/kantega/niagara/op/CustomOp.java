@@ -1,6 +1,6 @@
 package org.kantega.niagara.op;
 
-import org.kantega.niagara.sink.Sink;
+import org.kantega.niagara.state.Scope;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -15,7 +15,7 @@ public class CustomOp<A, B> implements TransformTypeOp<A, B> {
 
 
     @Override
-    public Sink<A> build(Sink<B> input) {
-        return Sink.sink(injectFunction.apply(input.consumer), input.done.comap(this));
+    public Scope<A> build(Scope<B> input) {
+        return Scope.scope(injectFunction.apply(input.consumer), input.done.comap(this));
     }
 }
