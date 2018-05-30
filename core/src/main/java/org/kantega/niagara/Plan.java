@@ -10,24 +10,26 @@ import org.kantega.niagara.task.Task;
 import org.kantega.niagara.thread.WaitStrategy;
 
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 
 /**
- * A Plan is a description of the streaming steps to perform. It is "compiled" into a runnable block by build. Nothing is done
- * before the block is actually run. When the stream ends no traces of the stream exist other than the performed sideeffects.
+ * A Plan is a description of the streaming steps to perform. It is "compiled" into a Task. Nothing is done
+ * before the Task is actually run. When the stream ends no traces of the stream exist other than the performed sideeffects.
  * The plan has to be compiled and run again if
  * the stream is to be rerun.
  * <p>
  * To extend the stream api you can subtype Plan and add methods that use append to add operational stages to the source.
  * <p>
- * A plan is immutable. Every call to build creates a new and separate stream. Take caution when pulling data from queues or other
- * data from outside the stream, as they are mutable and change between and during streams.
- * The qeueues for example are not immutable
+ * A plan is immutable. Every call to this api creates a new and separate object. Take caution when pulling data from queues or other
+ * data from outside the stream, as they are mutable and change between and during runs.
+ * (The qeueues for example are not immutable)
  *
  * @param <A>
  */
 public class Plan<A> {
 
+    //The instruction holding information on how to build the task that runs the stream.
     public final Instruction<A, Unit> instruction;
 
     private Plan(Instruction<A, Unit> instruction) {
@@ -285,28 +287,48 @@ public class Plan<A> {
         return append(new OfferQueueWaitingOp<>(queue, waitStrategy));
     }
 
-
+    /**
+     * Compiles the plan to a Task that can be run.
+     *
+     * @return
+     */
     public Task<Unit> compile() {
-        return compile(instruction);
+        return compile(instruction, (u, a) -> u, Unit.unit());
     }
 
-    private static <O, R> Task<Unit> compile(Instruction<O, R> instruction) {
+    /**
+     * Compiles the plan to a task, folding over the final output from the stream and yielding an R when the stream halts.
+     *
+     * @param initvalue The initial value to accumulate to.
+     * @param folder    The accumulator
+     * @param <R>       The type of the accumulated value
+     * @return a Task that runs the stream.
+     */
+    public <R> Task<R> compile(R initvalue, BiFunction<R, A, R> folder) {
+        return compile(instruction, folder, initvalue);
+    }
+
+    private static <R, A> Task<R> compile(Instruction<A, ?> instruction, BiFunction<R, A, R> folder, R initvalue) {
+        var rValue = new AtomicReference<>(initvalue);
         return (rt, cont) -> {
             try {
 
-                var s = Scope.<O>scope(a -> {}, d -> {});
-                var eval = instruction.eval(s);
+                var s =
+                    Scope.<A>scope(a -> rValue.set(folder.apply(rValue.get(), a)), d -> {});
+
+                var eval =
+                    instruction.eval(s);
 
                 eval
-                  .perform(rt, eitherTry ->
-                    eitherTry.doEffect(
-                      t -> cont.accept(Try.fail(t)),
-                      either -> {
-                          either.left().foreachDoEffect(u -> cont.accept(Try.value(Unit.unit())));
-                          either.right().foreachDoEffect(instr -> rt.enqueue(compile(instr), cont));
-                      }));
+                    .perform(rt, eitherTry ->
+                        eitherTry.doEffect(
+                            t -> cont.accept(Try.fail(t)),
+                            either -> {
+                                either.left().foreachDoEffect(u -> cont.accept(Try.value(rValue.get())));
+                                either.right().foreachDoEffect(instr -> rt.enqueue(compile(instr, folder, rValue.get()), cont));
+                            }));
             } catch (Throwable e) {
-                e.printStackTrace();
+                cont.accept(Try.fail(e));
             }
         };
     }
