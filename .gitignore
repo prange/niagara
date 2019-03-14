@@ -67,6 +67,7 @@ dependency-reduced-pom.xml
 
 # Package Files #
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 
