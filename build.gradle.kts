@@ -1,13 +1,8 @@
 plugins {
-    base
-    idea
     maven
-    `maven-publish`
-    `build-scan`
+    groovy
     java
-    kotlin("jvm") version "1.2.60"
-    id("org.jetbrains.dokka") version "0.9.16"
-    id("org.jetbrains.kotlin.kapt") version "1.2.60"
+    kotlin("jvm") version "1.3.21"
 }
 
 
@@ -18,12 +13,6 @@ description = """"""
 
 
 
-
-
-buildScan {
-    setTermsOfServiceUrl("https://gradle.com/terms-of-service")
-    setTermsOfServiceAgree("yes")
-}
 
 allprojects {
 
