@@ -187,13 +187,13 @@ data class ExecutingSource<A,B>(val wrapped: Source<A>, val sink: (A)-> Task<B>)
       }
 }
 
-data class MappedSource<A, B>(val wrapped: Source<A>, val f: (A) -> B) : Source<B> {
+data class MappedSource<A, B>(val wrapped: Source<A>, val ff: (A) -> B) : Source<B> {
     override fun step(): Task<P2<List<B>, Source<B>>> =
-      wrapped.step().map { (list, next) -> p(list.map(f), next.map(f)) }
+      wrapped.step().map { (list, next) -> p(list.map(ff), next.map(ff)) }
 
 
-    override fun <C> map(g: (B) -> C): Source<C> {
-        return MappedSource(wrapped, f andThen g)
+    override fun <C> map(f: (B) -> C): Source<C> {
+        return MappedSource(wrapped, ff andThen f)
     }
 
 }
