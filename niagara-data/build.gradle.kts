@@ -1,8 +1,9 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    java
     kotlin("jvm")
+    maven
+    `maven-publish`
 }
 
 group = "org.kantega.niagara"
