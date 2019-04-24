@@ -96,52 +96,28 @@ data class OrEndpoint<A>(val one: Route<A>, val other: Route<A>) : Route<A> {
 data class ChainedEndpoints<A, B>(val first: Route<A>, val onSuccess: (A) -> Route<B>) : Route<B> {
 
     override fun handle(input: Request): RouteResult<P2<Request, B>> {
-        return first.handle(input).flatMap({ input -> onSuccess(input._2).handle(input._1) })
+        return first.handle(input).flatMap({ res -> onSuccess(res._2).handle(res._1) })
     }
 }
 
-operator fun RouteMatcher.plus(path: String): Route<HNil> =
-  Root + this + path(path)
-
-operator fun RouteMatcher.plus(other: RouteMatcher): Route<HNil> =
-  Root + this + other
-
-operator fun <A> RouteMatcher.plus(other: RouteExtractor<A>): Route<HCons<A, HNil>> =
-  Root + this + other
-
-operator fun <A> RouteExtractor<A>.plus(other: RouteMatcher): Route<HCons<A, HNil>> =
-  Root + this + other
-
-operator fun <A,B> RouteExtractor<A>.plus(other: RouteExtractor<B>): Route<HCons<B, HCons<A,HNil>>> =
-  Root + this + other
-
-operator fun <HL : HList> Route<HL>.plus(matcher: RouteMatcher): Route<HL> =
-  MatchingRoute(matcher, this)
-
-operator fun <HL : HList> Route<HL>.plus(path: String): Route<HL> =
-  MatchingRoute(path(path), this)
-
-operator fun <A, HL : HList> Route<HL>.plus(extractor: RouteExtractor<A>): Route<HCons<A, HL>> =
-  ExtractingRoute(extractor, this)
-
-
-
+operator fun <A> Route<A>.plus(other: Route<A>): Route<A> =
+  this or other
 
 
 operator fun RouteMatcher.div(path: String): Route<HNil> =
-  Root + this + path(path)
+  Root / this / path(path)
 
 operator fun RouteMatcher.div(other: RouteMatcher): Route<HNil> =
-  Root + this + other
+  Root / this / other
 
 operator fun <A> RouteMatcher.div(other: RouteExtractor<A>): Route<HCons<A, HNil>> =
-  Root + this + other
+  Root / this / other
 
 operator fun <A> RouteExtractor<A>.div(other: RouteMatcher): Route<HCons<A, HNil>> =
-  Root + this + other
+  Root / this / other
 
 operator fun <A,B> RouteExtractor<A>.div(other: RouteExtractor<B>): Route<HCons<B, HCons<A,HNil>>> =
-  Root + this + other
+  Root / this / other
 
 operator fun <HL : HList> Route<HL>.div(matcher: RouteMatcher): Route<HL> =
   MatchingRoute(matcher, this)
@@ -275,25 +251,30 @@ fun <A> jsonContent(decoder: JsonDecoder<A>): RouteExtractor<A> =
   json.bind { json -> decoder(json).fold({ failed<A>() }, { v -> match(v) }) }
 
 
-fun notFound(): Route<Unit> =
+fun <A> notFound(): Route<A> =
   NotFoundEndpoint()
 
 
-fun fail(): Route<Unit> =
+fun <A> fail(): Route<A> =
   FailingEndpoint()
 
 
 fun <A> value(a: A) =
   RouteExtractor { input -> match(p(input, a)) }
 
+fun <A> routes(vararg routes:Route<A>):Route<A> =
+  List.of(*routes).foldLeft(notFound(),{accum,route->accum or route})
 
-class NotFoundEndpoint : Route<Unit> {
-    override fun handle(input: Request): RouteResult<P2<Request, Unit>> =
+class NotFoundEndpoint<A> : Route<A> {
+    override fun handle(input: Request): RouteResult<P2<Request, A>> =
       notMatched()
+
+    override fun or(other: Route<A>): Route<A> =
+      other
 }
 
-class FailingEndpoint : Route<Unit> {
-    override fun handle(input: Request): RouteResult<P2<Request, Unit>> =
+class FailingEndpoint<A> : Route<A> {
+    override fun handle(input: Request): RouteResult<P2<Request, A>> =
       failed()
 }
 
