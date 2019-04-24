@@ -1,24 +1,18 @@
 package org.kantega.niagara.http
 
-import io.undertow.server.handlers.Cookie
-import io.undertow.util.HttpString
 import io.vavr.Tuple2
 import io.vavr.collection.List
 import io.vavr.collection.TreeMap
 import io.vavr.control.Option
 import org.kantega.niagara.data.update
-import java.io.InputStream
 import java.io.UnsupportedEncodingException
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import kotlin.collections.dropLastWhile
-import kotlin.collections.filter
-import kotlin.collections.toTypedArray
 
-data class Request private constructor(
+data class Request(
   val requestCookies: TreeMap<String, Cookie>,
-  val requestHeaders: TreeMap<HttpString, List<String>>,
+  val requestHeaders: TreeMap<String, List<String>>,
   val queryParams: TreeMap<String, List<String>>,
   val body: String,
   val requestUri: URI,
@@ -27,7 +21,7 @@ data class Request private constructor(
   val method: String) {
 
     fun withHeader(name: String, value: String) =
-      copy(requestHeaders = requestHeaders.update(HttpString(name), { list -> list.prepend(value) }, { List.of(value) }))
+      copy(requestHeaders = requestHeaders.update(name, { list -> list.prepend(value) }, { List.of(value) }))
 
 
     fun withQueryParam(name: String, value: String) =
@@ -66,8 +60,7 @@ data class Request private constructor(
             exchange.requestMethod.toString())
 */
 
-        private fun readBytes(stream: InputStream): String =
-          stream.bufferedReader().use { it.readText() }
+
 
 
         fun getRequest(path: String): Request {

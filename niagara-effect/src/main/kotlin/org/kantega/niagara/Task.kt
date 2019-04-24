@@ -1,10 +1,7 @@
 package no.supercal.eff
 
-import io.vavr.collection.List
 import io.vavr.control.Try
-import java.lang.Exception
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 
 interface Task<A> {

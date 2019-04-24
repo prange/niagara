@@ -8,6 +8,7 @@ import org.kantega.niagara.data.P2
 import io.vavr.kotlin.*
 import org.kantega.niagara.data.andThen
 import org.kantega.niagara.data.p
+import java.util.concurrent.atomic.AtomicBoolean
 
 typealias Sink<A> = (A) -> Task<Unit>
 
@@ -70,7 +71,8 @@ interface Source<A> {
     fun drop(pred:(A)->Boolean) : Source<A> =
       flatMap { a -> if(pred(a)) Option.none() else Option.some(a)}
 
-
+    fun takeWhile(pred:(A)->Boolean) :Source<A> =
+      TakeWhileSource(this,pred)
 
     companion object {
 
@@ -83,7 +85,6 @@ interface Source<A> {
 
         fun <A> nil(): Source<A> =
           Done()
-
 
         fun <A> output1(a: A): Source<A> =
           Output1(a)
@@ -220,6 +221,18 @@ data class FoldingSource<S, A, B>(val wrapped: Source<A>, val init: S, val f: (S
       }
 }
 
+data class TakeWhileSource<A>(val wrapped:Source<A>,val closeSignal:(A)->Boolean):Source<A>{
+    override fun step(): Task<P2<List<A>, Source<A>>> =
+      wrapped.step().map{(aas,wrappedNext)->
+          if(aas.exists(closeSignal)){
+              val aasUntil = aas.takeUntil(closeSignal)
+              p(aasUntil,Done())
+          }else{
+              p(aas,wrappedNext)
+          }
+      }
+
+}
 
 fun <A> Source<Task<A>>.execute(): Source<A> =
   ExecutingSource(this,{t->t})

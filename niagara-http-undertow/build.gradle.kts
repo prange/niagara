@@ -9,11 +9,8 @@ plugins {
 }
 
 dependencies {
-    compile(project(":niagara-data"))
-    compile(project(":niagara-json"))
-    compile(project(":niagara-effect"))
-    compile("io.vavr:vavr:0.10.0")
-    compile("io.vavr:vavr-kotlin:0.10.0")
+    compile(project(":niagara-http"))
+    compile("io.undertow:undertow-core:2.0.1.Final")
     compile(kotlin("stdlib-jdk8"))
 }
 
