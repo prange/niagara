@@ -16,13 +16,14 @@ import java.net.URI
 import java.util.*
 import io.undertow.server.handlers.Cookie as UCookie
 import io.vavr.collection.List
+import java.io.IOException
 
 fun fromExchange(exchange: HttpServerExchange) =
   Request(
     TreeMap.ofAll(exchange.requestCookies).mapValues { convertCookie(it) },
     toMap(exchange.requestHeaders),
     TreeMap.ofAll<String, Deque<String>>(exchange.queryParameters).mapValues({ d -> List.ofAll(d) }),
-    readBytes(exchange.inputStream),
+    readBytesToString(exchange.inputStream),
     URI.create(exchange.requestURI),
     List.of(*exchange.requestPath.split("/".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()),
     List.empty(),
@@ -41,7 +42,7 @@ fun intoExcehange(response: Response, exchange: HttpServerExchange) {
     exchange.statusCode = response.statusCode
 
     response.body.forEach { body ->
-        val readAllBytes = body.readAllBytes()
+        val readAllBytes = body.readBytes()
         exchange.responseContentLength = readAllBytes.size.toLong()
         exchange.outputStream.write(readAllBytes)
     }
@@ -81,7 +82,7 @@ fun convertCookie(cookie: Cookie): UCookie {
     return ucookie
 }
 
-private fun readBytes(stream: InputStream): String =
+private fun readBytesToString(stream: InputStream): String =
   stream.bufferedReader().use { it.readText() }
 
 
@@ -97,5 +98,6 @@ private fun toMap(headerMap: HeaderMap): TreeMap<String, List<String>> =
                 updatedMap.update(name.toString(), { list -> list.append(value) }, { List.of(value) })
             })
     })
+
 
 
