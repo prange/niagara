@@ -47,21 +47,6 @@ data class Request(
 
 
     companion object {
-/*
-        fun of(exchange: HttpServerExchange) =
-          Request(
-            TreeMap.ofAll(exchange.requestCookies),
-            exchange.requestHeaders,
-            TreeMap.ofAll<String, Deque<String>>(exchange.queryParameters).mapValues({ d -> List.ofAll(d) }),
-            readBytes(exchange.inputStream),
-            URI.create(exchange.requestURI),
-            List.of(*exchange.requestPath.split("/".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()),
-            List.empty(),
-            exchange.requestMethod.toString())
-*/
-
-
-
 
         fun getRequest(path: String): Request {
             val uri = URI.create(path)
