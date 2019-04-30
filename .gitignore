@@ -7,6 +7,9 @@
 
 ## Directory-based project format:
 .idea/
+.gradle
+build
+
 # if you remove the above rule, at least ignore the following:
 
 # User-specific stuff:
@@ -73,5 +76,9 @@ dependency-reduced-pom.xml
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+
+!/niagara-data/build/
+.DS_Store
 
 
