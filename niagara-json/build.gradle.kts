@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.gradle.api.tasks.bundling.Jar
 
 plugins {
     kotlin("jvm")
@@ -13,24 +12,11 @@ dependencies {
 }
 
 
-
-
-repositories {
-    mavenCentral()
+configure<JavaPluginConvention> {
+    sourceCompatibility = JavaVersion.VERSION_1_8
 }
-val compileKotlin: KotlinCompile by tasks
-
-compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
-}
-val compileTestKotlin: KotlinCompile by tasks
-
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
-}
-
-val sourcesJar by tasks.registering(Jar::class) {
-    from(sourceSets["main"].allSource)
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 
