@@ -10,8 +10,6 @@ plugins {
 
 dependencies {
     compile(project(":niagara-data"))
-    compile("io.vavr:vavr:0.10.0")
-    compile("io.vavr:vavr-kotlin:0.10.0")
     compile(kotlin("stdlib-jdk8"))
 }
 

@@ -42,8 +42,9 @@ fun intoExcehange(response: Response, exchange: HttpServerExchange) {
     exchange.statusCode = response.statusCode
 
     response.body.forEach { body ->
-        exchange.responseContentLength = body.length.toLong()
-        exchange.outputStream.write(body.toByteArray())
+        val readAllBytes = body.readAllBytes()
+        exchange.responseContentLength = readAllBytes.size.toLong()
+        exchange.outputStream.write(readAllBytes)
     }
 }
 
