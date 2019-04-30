@@ -2,10 +2,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.gradle.api.tasks.bundling.Jar
 
 plugins {
+    kotlin("jvm")
     maven
     `maven-publish`
-    java
-    kotlin("jvm")
 }
 
 dependencies {
