@@ -5,20 +5,22 @@ import io.vavr.control.Option
 import org.kantega.niagara.data.appendIfMissing
 import java.io.InputStream
 
-fun Ok(): Response {
-    return Response(TreeMap.empty(), TreeMap.empty(), 200, Option.none())
-}
+val Ok =
+  Response(TreeMap.empty(), TreeMap.empty(), 200, Option.none())
+
+val NotFound =
+  Ok.withStatusCode(404)
 
 fun Ok(body: String): Response {
-    return Ok().withBody(body)
+    return Ok.withBody(body)
 }
 
 fun Ok(value: InputStream): Response {
-    return Ok().withBody(value)
+    return Ok.withBody(value)
 }
 
 
-fun classPathResource(prefix: String): (Request) -> RouteResult<Response> = { request ->
+fun classPathResource(prefix: String): (Request) -> Response = { request ->
     val path =
       prefix.appendIfMissing("/")+request.remainingPath.mkString("/")
 
@@ -26,8 +28,8 @@ fun classPathResource(prefix: String): (Request) -> RouteResult<Response> = { re
       Option.of(Thread.currentThread().contextClassLoader.getResourceAsStream(path))
 
     maybeInputStream.fold(
-      { RouteResult.notMatched() },
-      { inputStream -> RouteResult.match(Ok(inputStream)) }
+      { NotFound },
+      { inputStream -> Ok(inputStream) }
     )
 
 }
