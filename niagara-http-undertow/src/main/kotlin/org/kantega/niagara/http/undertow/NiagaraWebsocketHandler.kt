@@ -10,19 +10,17 @@ import io.undertow.websockets.core.protocol.version07.Hybi07Handshake
 import io.undertow.websockets.core.protocol.version08.Hybi08Handshake
 import io.undertow.websockets.core.protocol.version13.Hybi13Handshake
 import io.undertow.websockets.spi.AsyncWebSocketHttpServerExchange
-import no.supercal.eff.Task
+import org.kantega.niagara.Task
 import org.jctools.queues.MpscArrayQueue
 import org.kantega.niagara.Source
 import org.kantega.niagara.data.toOption
 import org.kantega.niagara.http.*
 import org.kantega.niagara.runTask
 import java.io.IOException
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import io.undertow.websockets.core.WebSocketChannel
 import org.kantega.niagara.enqueue
 import java.util.Collections.newSetFromMap
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -67,7 +65,7 @@ class NiagaraWebsocketHandler(
                         channel.close()
 
                         channel.closeSetter.set { }
-                        val planQueue = IncomingQueue(enqueue(incoming),{Task.exec { closeSignal.set(true) }},executorService)
+                        val planQueue = IncomingQueue(enqueue(incoming),{ Task.exec { closeSignal.set(true) }},executorService)
                         channel.receiveSetter.set(planQueue)
                         val outbound = outputMatched.value._2.streams(Source.queue(incoming))
                         val outboundSource = outbound.into({ str: String -> Task.exec { WebSockets.sendTextBlocking(str, channel) } })
@@ -97,7 +95,7 @@ class NiagaraWebsocketHandler(
 }
 
 data class IncomingQueue(
-  val onMessageTask:(String)->Task<Unit>,
+  val onMessageTask:(String)-> Task<Unit>,
   val closeTask: (WebSocketChannel) -> Task<Unit>,
   val executorService: ScheduledExecutorService) : AbstractReceiveListener() {
 

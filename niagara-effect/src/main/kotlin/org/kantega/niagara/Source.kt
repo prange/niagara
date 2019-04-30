@@ -2,13 +2,11 @@ package org.kantega.niagara
 
 import io.vavr.collection.List
 import io.vavr.control.Option
-import no.supercal.eff.Task
 import org.jctools.queues.MessagePassingQueue
 import org.kantega.niagara.data.P2
 import io.vavr.kotlin.*
 import org.kantega.niagara.data.andThen
 import org.kantega.niagara.data.p
-import java.util.concurrent.atomic.AtomicBoolean
 
 typealias Sink<A> = (A) -> Task<Unit>
 

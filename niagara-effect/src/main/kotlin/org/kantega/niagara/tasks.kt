@@ -1,7 +1,6 @@
 package org.kantega.niagara
 
 import io.vavr.collection.List
-import no.supercal.eff.Task
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 

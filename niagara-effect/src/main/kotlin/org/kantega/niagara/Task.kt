@@ -1,4 +1,4 @@
-package no.supercal.eff
+package org.kantega.niagara
 
 import io.vavr.control.Try
 import java.util.concurrent.CompletableFuture
@@ -10,10 +10,10 @@ interface Task<A> {
       map { Unit }
 
     infix fun <B> bind(f: (A) -> Task<B>): Task<B> =
-      BoundTask(this, { ta -> ta.fold({ t -> Task.fail<B>(t) }, { s -> f(s) }) })
+      BoundTask(this, { ta -> ta.fold({ t -> fail<B>(t) }, { s -> f(s) }) })
 
     fun handle(f: (Throwable) -> Task<A>) =
-      BoundTask(this, { ta -> ta.fold({ t -> f(t) }, { s -> Task.just(s) }) })
+      BoundTask(this, { ta -> ta.fold({ t -> f(t) }, { s -> just(s) }) })
 
     infix fun <B> map(f: (A) -> B): Task<B> =
       bind { a -> just(f(a)) }
