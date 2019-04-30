@@ -3,7 +3,6 @@ package org.kantega.niagara.http.undertow
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.handlers.CookieImpl
 import io.undertow.util.HeaderMap
-import io.undertow.util.HeaderValues
 import io.undertow.util.HttpString
 import io.vavr.collection.TreeMap
 import io.vavr.control.Option
