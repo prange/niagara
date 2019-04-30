@@ -1,4 +1,4 @@
-package org.kantega.niagara
+package org.kantega.niagara.eff
 
 import io.vavr.control.Try
 import java.util.concurrent.CompletableFuture

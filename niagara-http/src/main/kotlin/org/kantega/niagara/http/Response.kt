@@ -4,7 +4,7 @@ package org.kantega.niagara.http
 import io.vavr.collection.List
 import io.vavr.collection.TreeMap
 import io.vavr.control.Option
-import org.kantega.niagara.Task
+import org.kantega.niagara.eff.Task
 import org.kantega.niagara.data.update
 import java.io.ByteArrayInputStream
 import java.io.InputStream

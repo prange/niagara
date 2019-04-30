@@ -1,4 +1,4 @@
-package org.kantega.niagara
+package org.kantega.niagara.eff
 
 import io.vavr.collection.List
 import io.vavr.control.Option
@@ -69,8 +69,8 @@ interface Source<A> {
     fun drop(pred:(A)->Boolean) : Source<A> =
       flatMap { a -> if(pred(a)) Option.none() else Option.some(a)}
 
-    fun takeWhile(pred:(A)->Boolean) :Source<A> =
-      TakeWhileSource(this,pred)
+    fun takeWhile(pred:(A)->Boolean) : Source<A> =
+      TakeWhileSource(this, pred)
 
     companion object {
 
@@ -219,12 +219,12 @@ data class FoldingSource<S, A, B>(val wrapped: Source<A>, val init: S, val f: (S
       }
 }
 
-data class TakeWhileSource<A>(val wrapped:Source<A>,val closeSignal:(A)->Boolean):Source<A>{
+data class TakeWhileSource<A>(val wrapped: Source<A>, val closeSignal:(A)->Boolean): Source<A> {
     override fun step(): Task<P2<List<A>, Source<A>>> =
       wrapped.step().map{(aas,wrappedNext)->
           if(aas.exists(closeSignal)){
               val aasUntil = aas.takeUntil(closeSignal)
-              p(aasUntil,Done())
+              p(aasUntil, Done())
           }else{
               p(aas,wrappedNext)
           }
@@ -233,9 +233,9 @@ data class TakeWhileSource<A>(val wrapped:Source<A>,val closeSignal:(A)->Boolean
 }
 
 fun <A> Source<Task<A>>.execute(): Source<A> =
-  ExecutingSource(this,{t->t})
+  ExecutingSource(this, { t -> t })
 
 fun <A> Source<out Iterable<A>>.flatten(): Source<A> =
-  FlatMappedSource(this,{i->i})
+  FlatMappedSource(this, { i -> i })
 
 

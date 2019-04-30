@@ -1,4 +1,4 @@
-package org.kantega.niagara
+package org.kantega.niagara.eff
 
 import org.jctools.queues.MessagePassingQueue
 
