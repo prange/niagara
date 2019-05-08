@@ -10,10 +10,10 @@ import java.io.ByteArrayInputStream
 import java.io.InputStream
 
 data class Response(
-  val responseCookies: TreeMap<String, Cookie>,
-  val responseHeaders: TreeMap<String, List<String>>,
-  val statusCode: Int,
-  val body: Option<InputStream>) {
+  val responseCookies: TreeMap<String, Cookie> = TreeMap.empty(),
+  val responseHeaders: TreeMap<String, List<String>> = TreeMap.empty(),
+  val statusCode: Int = 200,
+  val body: Option<InputStream> = Option.none()) {
 
     fun withHeader(key: String, value: String): Response =
       copy(responseHeaders = responseHeaders.update(key, { list -> list.prepend(value) }, { List.of(value) }))

@@ -20,6 +20,17 @@ data class RouteMatcher(val f: (Request) -> RouteResult<Request>) {
 
     fun match(request: Request): RouteResult<Request> =
       f(request)
+
+    fun bind(g: (Request) -> RouteResult<Request>) =
+      RouteMatcher { r -> f(r).flatMap { r2 -> g(r2) } }
+
+    infix fun <A> thenExtract(f: (Request) -> RouteResult<P2<Request, A>>) = RouteExtractor { request ->
+        RouteResult.match(request).fold(
+          { match -> f(match.value) },
+          { notMatch -> notMatched() },
+          { fail -> Failed(fail.failure) }
+        )
+    }
 }
 
 data class RouteExtractor<A>(val f: (Request) -> RouteResult<P2<Request, A>>) {
@@ -81,7 +92,6 @@ data class HandlingRoute<A, HL : HList>(val handler: (Request, HL) -> A, val tai
 }
 
 
-
 data class OrEndpoint<A>(val one: Route<A>, val other: Route<A>) : Route<A> {
 
     override fun handle(input: Request): RouteResult<P2<Request, A>> {
@@ -116,7 +126,7 @@ operator fun <A> RouteMatcher.div(other: RouteExtractor<A>): Route<HCons<A, HNil
 operator fun <A> RouteExtractor<A>.div(other: RouteMatcher): Route<HCons<A, HNil>> =
   Root / this / other
 
-operator fun <A,B> RouteExtractor<A>.div(other: RouteExtractor<B>): Route<HCons<B, HCons<A,HNil>>> =
+operator fun <A, B> RouteExtractor<A>.div(other: RouteExtractor<B>): Route<HCons<B, HCons<A, HNil>>> =
   Root / this / other
 
 operator fun <HL : HList> Route<HL>.div(matcher: RouteMatcher): Route<HL> =
@@ -127,8 +137,6 @@ operator fun <HL : HList> Route<HL>.div(path: String): Route<HL> =
 
 operator fun <A, HL : HList> Route<HL>.div(extractor: RouteExtractor<A>): Route<HCons<A, HL>> =
   ExtractingRoute(extractor, this)
-
-
 
 
 fun <A, HL : HList> Route<HL>.handler(handler: (Request, HL) -> A): Route<A> =
@@ -178,7 +186,7 @@ val optionalPathParam =
           match(p(input.advancePath(1), Option.of(input.remainingPath.head())))
   }
 
-fun method(method:String): RouteMatcher =
+fun method(method: String): RouteMatcher =
   RouteMatcher { input ->
       if (input.method.toLowerCase() == method.toLowerCase())
           match(input)
@@ -204,6 +212,12 @@ val ROOT =
 
 val GET =
   method("GET")
+
+val POST =
+  method("POST")
+
+val PUT =
+  method("PUT")
 
 
 fun queryParam(name: String) =
@@ -240,30 +254,49 @@ fun queryParamAsLong(name: String) =
         )
   }
 
-val json =
-  RouteExtractor { input ->
-      JsonParser.parse(input.body).fold(
-        { failed<P2<Request, JsonValue>>() },
-        { json -> match(p(input, json)) })
+fun mediaType(mediaType: MediaType) =
+  RouteMatcher { request ->
+      request
+        .requestHeaders
+        .get("Content-Type")
+        .flatMap { list -> list.headOption() }
+        .fold(
+          { notMatched() },
+          { headerValue -> if (headerValue.startsWith(mediaType.type)) match(request) else notMatched() }
+        )
   }
 
-fun <A> jsonContent(decoder: JsonDecoder<A>): RouteExtractor<A> =
-  json.bind { json -> decoder(json).fold({ failed<A>() }, { v -> match(v) }) }
+val json =
+  mediaType(APPLICATION_JSON)
+    .thenExtract { input ->
+        JsonParser.parse(input.body).fold(
+          { nel -> failed<P2<Request, JsonValue>>(nel.toList().mkString(",")) },
+          { json -> match(p(input, json)) })
+    }
+
+fun <A> json(decoder: JsonDecoder<A>): RouteExtractor<A> =
+  json
+    .bind { json ->
+        decoder(json)
+          .fold(
+            { nel -> failed<A>(nel.toList().mkString(",")) },
+            { v -> match(v) })
+    }
 
 
 fun <A> notFound(): Route<A> =
   NotFoundEndpoint()
 
 
-fun <A> fail(): Route<A> =
-  FailingEndpoint()
+fun <A> fail(reason: String): Route<A> =
+  FailingEndpoint(reason)
 
 
 fun <A> value(a: A) =
   RouteExtractor { input -> match(p(input, a)) }
 
-fun <A> routes(vararg routes:Route<A>):Route<A> =
-  List.of(*routes).foldLeft(notFound(),{accum,route->accum or route})
+fun <A> routes(vararg routes: Route<A>): Route<A> =
+  List.of(*routes).foldLeft(notFound(), { accum, route -> accum or route })
 
 class NotFoundEndpoint<A> : Route<A> {
     override fun handle(input: Request): RouteResult<P2<Request, A>> =
@@ -273,9 +306,9 @@ class NotFoundEndpoint<A> : Route<A> {
       other
 }
 
-class FailingEndpoint<A> : Route<A> {
+data class FailingEndpoint<A>(val reason: String) : Route<A> {
     override fun handle(input: Request): RouteResult<P2<Request, A>> =
-      failed()
+      failed(reason)
 }
 
 

@@ -20,12 +20,25 @@ fun Ok(value: InputStream): Response {
 }
 
 
-fun classPathResource(prefix: String): (Request) -> Response = { request ->
+fun classPathResources(prefix: String): (Request) -> Response = { request ->
     val path =
       prefix.appendIfMissing("/")+request.remainingPath.mkString("/")
 
     val maybeInputStream =
       Option.of(Thread.currentThread().contextClassLoader.getResourceAsStream(path))
+
+    maybeInputStream.fold(
+      { NotFound },
+      { inputStream -> Ok(inputStream) }
+    )
+
+}
+
+fun classPathResource(name: String): (Request) -> Response = { request ->
+
+
+    val maybeInputStream =
+      Option.of(Thread.currentThread().contextClassLoader.getResourceAsStream(name))
 
     maybeInputStream.fold(
       { NotFound },
