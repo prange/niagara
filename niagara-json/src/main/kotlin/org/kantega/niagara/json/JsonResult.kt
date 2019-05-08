@@ -1,6 +1,9 @@
 package org.kantega.niagara.json
 
+import io.vavr.collection.List
+import org.kantega.niagara.data.Monoid
 import org.kantega.niagara.data.NonEmptyList
+import org.kantega.niagara.data.Semigroup
 
 
 sealed class JsonResult<out A> {
@@ -74,16 +77,20 @@ fun <A, B> jLift(f: (A) -> B) =
   jOk(f)
 
 infix fun <A> JsonResult<A>.getOrElse(a: A): A =
-  this.fold({ a }, { c -> c })
+  this.fold({ a }, { it })
 
 infix fun <A> JsonResult<A>.getOrElse(f: (NonEmptyList<String>) -> A): A =
-  this.fold({ f(it) }, { c -> c })
+  this.fold({ f(it) }, { it })
+
+infix fun <A> JsonResult<A>.getOrElseThrow(f: (NonEmptyList<String>) -> Throwable): A =
+  this.fold({ nel -> throw f(nel) }, { it })
 
 infix fun <A> JsonResult<A>.orElse(a: JsonResult<A>): JsonResult<A> =
   this.fold({ a }, { this })
 
 infix fun <A> JsonResult<A>.orElse(f: (NonEmptyList<String>) -> JsonResult<A>): JsonResult<A> =
   this.fold({ nel -> f(nel) }, { this })
+
 
 fun JsonResult<JsonValue>.field(path: String): JsonResult<JsonValue> =
   this.field(JsonPath(path))
@@ -94,8 +101,43 @@ fun JsonResult<JsonValue>.field(path: JsonPath): JsonResult<JsonValue> =
 fun JsonResult<JsonValue>.asArray(): JsonResult<JsonArray> =
   this.bind { v -> v.asArray() }
 
+fun JsonResult<JsonArray>.mapJsonArray(f: (JsonValue) -> JsonResult<JsonValue>): JsonResult<JsonArray> =
+  this.bind { array ->
+      array.a.map(f).sequence().map { JsonArray(it) }
+  }
+
+fun <A> List<JsonResult<A>>.sequence(): JsonResult<List<A>> =
+  this.foldLeft(
+    JsonResult.success(List.empty<A>()),
+    { accum, elem ->
+        accum.fold(
+          { accumFail ->
+              elem.fold(
+                { fail -> JsonResult.fail(accumFail + fail) },
+                { JsonResult.fail(accumFail) })
+          },
+          { list ->
+              elem.fold(
+                { fail -> JsonResult.fail(fail) },
+                { value -> JsonResult.success(list.append(value)) })
+          })
+    }
+  )
+
 fun JsonResult<JsonValue>.asString(): JsonResult<String> =
   this.bind { it.asString() }
 
 fun JsonResult<JsonValue>.asInt(): JsonResult<Int> =
   this.bind { it.asNumber() }.map { bd -> bd.toInt() }
+
+data class JsonResultSemigroup<A>(val aSemigroup: Semigroup<A>) : Semigroup<JsonResult<A>> {
+    override fun invoke(p1: JsonResult<A>, p2: JsonResult<A>): JsonResult<A> {
+        return when {
+            p1 is JsonSuccess && p2 is JsonSuccess -> jOk(aSemigroup(p1.a, p2.a))
+            p1 is JsonFail && p2 is JsonFail       -> JsonResult.fail(p1.failNel + p2.failNel)
+            p1 is JsonFail && p2 is JsonSuccess    -> JsonResult.fail(p1.failNel)
+            p1 is JsonSuccess && p2 is JsonFail    -> JsonResult.fail(p2.failNel)
+            else                                   -> throw Error("unreachable code")
+        }
+    }
+}

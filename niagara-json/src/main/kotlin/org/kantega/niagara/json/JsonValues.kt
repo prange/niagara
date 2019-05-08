@@ -112,6 +112,10 @@ data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue {
 }
 
 data class JsonArray(val a: List<JsonValue>) : JsonValue {
+
+    fun update(f:(List<JsonValue>)->List<JsonValue>) =
+      copy(a = f(a))
+
     override fun asArray(): JsonResult<JsonArray> =
       JsonResult.success(this)
 
