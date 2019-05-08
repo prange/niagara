@@ -73,10 +73,10 @@ fun <A> jOk(value: A) =
 fun <A, B> jLift(f: (A) -> B) =
   jOk(f)
 
-infix fun <A> JsonResult<A>.orElse(a: A): A =
+infix fun <A> JsonResult<A>.getOrElse(a: A): A =
   this.fold({ a }, { c -> c })
 
-infix fun <A> JsonResult<A>.orElse(f: (NonEmptyList<String>) -> A): A =
+infix fun <A> JsonResult<A>.getOrElse(f: (NonEmptyList<String>) -> A): A =
   this.fold({ f(it) }, { c -> c })
 
 infix fun <A> JsonResult<A>.orElse(a: JsonResult<A>): JsonResult<A> =
