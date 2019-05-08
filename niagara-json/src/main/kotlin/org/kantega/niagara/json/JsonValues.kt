@@ -45,7 +45,7 @@ interface JsonValue {
       asObject().bind { obj ->
           obj.m.get(name)
             .map { JsonResult.success(it) }
-            .getOrElse(JsonResult.fail("The field $name did not exist in the object"))
+            .getOrElse(JsonResult.fail("The field $name did not exist in the object. Available fields are {${obj.m.keySet().mkString(", ")}}"))
       }
 
 }
