@@ -82,9 +82,6 @@ infix fun <A> JsonResult<A>.orElse(f: (NonEmptyList<String>) -> A): A =
 infix fun <A> JsonResult<A>.orElse(a: JsonResult<A>): JsonResult<A> =
   this.fold({ a }, { this })
 
-infix fun <A> JsonResult<A>.orElse(f: () -> JsonResult<A>): JsonResult<A> =
-  this.fold({ f() }, { this })
-
 infix fun <A> JsonResult<A>.orElse(f: (NonEmptyList<String>) -> JsonResult<A>): JsonResult<A> =
   this.fold({ nel -> f(nel) }, { this })
 
