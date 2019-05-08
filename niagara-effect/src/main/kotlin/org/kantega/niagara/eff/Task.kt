@@ -25,6 +25,12 @@ interface Task<A> {
 
     companion object {
 
+        operator fun <A> invoke(block: () -> A):Task<A> =
+          exec(block)
+
+        operator fun <A> invoke(value:A):Task<A> =
+          just(value)
+
         fun <A> exec(block: () -> A): Task<A> =
           EffectTask {
               Try.of(block)

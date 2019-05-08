@@ -52,3 +52,7 @@ fun <A> List<Task<A>>.sequence(): Task<List<A>> {
       { acc, task -> acc.bind { list -> task.map { a -> list.prepend(a) } } }
     )
 }
+
+fun <A, B> ((A) -> B).liftToTask(): (A) -> Task<B> = { a ->
+    Task(this.invoke(a))
+}
