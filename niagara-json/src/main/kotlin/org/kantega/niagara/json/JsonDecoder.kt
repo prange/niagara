@@ -34,6 +34,18 @@ fun <A, B, C, D, E> decode(constructor: (A, B, C, D) -> E): JsonDecoder<(A) -> (
 fun <A, B, C, D, E, F> decode(constructor: (A, B, C, D, E) -> F): JsonDecoder<(A) -> (B) -> (C) -> (D) -> (E) -> F> =
   decode(constructor.curried())
 
+fun <A, B, C, D, E, F, G> decode(constructor: (A, B, C, D, E, F) -> G): JsonDecoder<(A) -> (B) -> (C) -> (D) -> (E) -> (F) -> G> =
+  decode(constructor.curried())
+
+fun <A, B, C, D, E, F, G, H> decode(constructor: (A, B, C, D, E, F, G) -> H): JsonDecoder<(A) -> (B) -> (C) -> (D) -> (E) -> (F) -> (G) -> H> =
+  decode(constructor.curried())
+
+fun <A, B, C, D, E, F, G, H, I> decode(constructor: (A, B, C, D, E, F, G, H) -> I): JsonDecoder<(A) -> (B) -> (C) -> (D) -> (E) -> (F) -> (G) -> (H) -> I> =
+  decode(constructor.curried())
+
+fun <A, B, C, D, E, F, G, H, I, J> decode(constructor: (A, B, C, D, E, F, G, H, I) -> J): JsonDecoder<(A) -> (B) -> (C) -> (D) -> (E) -> (F) -> (G) -> (H) -> (I) -> J> =
+  decode(constructor.curried())
+
 
 val decodeString: JsonDecoder<String> =
   { it.asString() }

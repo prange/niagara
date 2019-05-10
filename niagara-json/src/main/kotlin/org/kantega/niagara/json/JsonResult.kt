@@ -1,7 +1,6 @@
 package org.kantega.niagara.json
 
 import io.vavr.collection.List
-import org.kantega.niagara.data.Monoid
 import org.kantega.niagara.data.NonEmptyList
 import org.kantega.niagara.data.Semigroup
 
