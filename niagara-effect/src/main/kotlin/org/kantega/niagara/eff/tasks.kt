@@ -3,7 +3,9 @@ package org.kantega.niagara.eff
 import io.vavr.collection.List
 import io.vavr.concurrent.Future
 import io.vavr.concurrent.Promise
+import io.vavr.control.Option
 import io.vavr.control.Try
+import io.vavr.kotlin.Try
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 
@@ -15,7 +17,6 @@ fun <A> runTask(task: Task<A>, executor: ScheduledExecutorService): Future<A> {
     executor.execute { task.execute(executor, { result -> promise.complete(result) }) }
     return promise.future()
 }
-
 
 
 fun <A, B, C> bind(
@@ -62,3 +63,6 @@ fun <A> List<Task<A>>.sequence(): Task<List<A>> {
 fun <A, B> ((A) -> B).liftToTask(): (A) -> Task<B> = { a ->
     Task(this.invoke(a))
 }
+
+fun <A> Task<Option<A>>.flatten(f: () -> Throwable) =
+  this.bind { maybeA -> Task.doTry { Try { maybeA.getOrElseThrow(f) } } }
