@@ -1,15 +1,21 @@
 package org.kantega.niagara.eff
 
 import io.vavr.collection.List
+import io.vavr.concurrent.Future
+import io.vavr.concurrent.Promise
+import io.vavr.control.Try
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 
-fun <A> runTask(task: Task<A>): Unit =
+fun <A> runTask(task: Task<A>): Future<A> =
   runTask(task, Executors.newSingleThreadScheduledExecutor())
 
-fun <A> runTask(task: Task<A>, executor: ScheduledExecutorService): Unit {
-    executor.execute { task.execute(executor, { result -> result.onFailure { it.printStackTrace() } }) }
+fun <A> runTask(task: Task<A>, executor: ScheduledExecutorService): Future<A> {
+    val promise = Promise.make<A>()
+    executor.execute { task.execute(executor, { result -> promise.complete(result) }) }
+    return promise.future()
 }
+
 
 
 fun <A, B, C> bind(
