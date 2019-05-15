@@ -4,17 +4,22 @@
 # * 'gtrp' and 'gtr' create a GET request with or without query parameters;
 # * 'ptr' and 'ptrp' create a POST request with a simple or parameter-like body;
 # * 'mptr' and 'fptr' create a POST request to submit a form with a text or file field (multipart/form-data);
-GET http://localhost:8080/ping
+GET http://localhost:8081/ping
 Accept: application/json
 
 ###
 
-GET http://localhost:8080/pppp
+GET http://localhost:8081/pppp
 Accept: application/json
 
 ###
 
-GET http://localhost:8080/echo?input=jallaballa
+GET http://localhost:8081/echo?input=jallaballa
 Accept: application/json
+
+###
+
+GET http://localhost:8081/asset/test.txt
+Accept: text/plain
 
 ###

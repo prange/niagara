@@ -222,6 +222,11 @@ val POST =
 val PUT =
   method("PUT")
 
+fun qp(name:String) =
+  queryParam(name)
+
+fun qpInt(name:String)=
+    queryParamAsInt(name)
 
 fun queryParam(name: String) =
   RouteExtractor { input ->

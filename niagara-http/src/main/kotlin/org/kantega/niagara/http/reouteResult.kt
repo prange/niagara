@@ -70,10 +70,6 @@ data class Failed<A>(val failure:Either<String,Throwable>) : RouteResult<A> {
     override fun <B> fold(matched: (Matched<A>) -> B, notMatched: (NotMatched<A>) -> B, failed: (Failed<A>) -> B): B =
       failed(this)
 
-
-    override fun toString(): String {
-        return "Failed()"
-    }
 }
 
 
