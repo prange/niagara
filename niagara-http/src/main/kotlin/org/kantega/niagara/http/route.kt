@@ -27,7 +27,7 @@ data class RouteMatcher(val f: (Request) -> RouteResult<Request>) {
     infix fun <A> thenExtract(f: (Request) -> RouteResult<P2<Request, A>>) = RouteExtractor { request ->
         RouteResult.match(request).fold(
           { match -> f(match.value) },
-          { notMatch -> notMatched() },
+          { notMatched() },
           { fail -> Failed(fail.failure) }
         )
     }
@@ -164,6 +164,9 @@ operator fun <A, B, C, D, E, F> Route<HCons<A, HCons<B, HCons<C, HCons<D, HCons<
 operator fun <A, B, C, D, E, F, G> Route<HCons<A, HCons<B, HCons<C, HCons<D, HCons<E, HCons<F, HNil>>>>>>>.invoke(h: (Request, A, B, C, D, E, F) -> G): Route<G> =
   handler { req, hlist -> h(req, hlist.head, hlist.tail.head, hlist.tail.tail.head, hlist.tail.tail.tail.head, hlist.tail.tail.tail.tail.head, hlist.tail.tail.tail.tail.tail.head) }
 
+operator fun <A, B, C, D, E, F, G,H > Route<HCons<A, HCons<B, HCons<C, HCons<D, HCons<E, HCons<F, HCons<G, HNil>>>>>>>>.invoke(h: (Request, A, B, C, D, E, F, G) -> H): Route<H> =
+  handler { req, hlist -> h(req, hlist.head, hlist.tail.head, hlist.tail.tail.head, hlist.tail.tail.tail.head, hlist.tail.tail.tail.tail.head, hlist.tail.tail.tail.tail.tail.head, hlist.tail.tail.tail.tail.tail.tail.head) }
+
 
 val end =
   RouteMatcher { input ->
@@ -208,7 +211,7 @@ fun path(path: List<String>): RouteMatcher =
   }
 
 val ROOT =
-  path("/")
+  Root
 
 val GET =
   method("GET")

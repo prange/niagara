@@ -17,6 +17,7 @@ import java.util.*
 import io.undertow.server.handlers.Cookie as UCookie
 import io.vavr.collection.List
 import java.io.IOException
+import java.nio.ByteBuffer
 
 fun fromExchange(exchange: HttpServerExchange) =
   Request(
@@ -25,12 +26,14 @@ fun fromExchange(exchange: HttpServerExchange) =
     TreeMap.ofAll<String, Deque<String>>(exchange.queryParameters).mapValues({ d -> List.ofAll(d) }),
     readBytesToString(exchange.inputStream),
     URI.create(exchange.requestURI),
-    List.of(*exchange.requestPath.split("/".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()),
+    List.of(*exchange.requestPath.split("/".toRegex()).filter({ it.isNotEmpty() }).toTypedArray()),
     List.empty(),
     exchange.requestMethod.toString())
 
 
 fun intoExcehange(response: Response, exchange: HttpServerExchange) {
+    exchange.statusCode = response.statusCode
+
     response.responseCookies.forEach { key, cookie ->
         exchange.responseCookies[key] = convertCookie(cookie)
     }
@@ -39,12 +42,11 @@ fun intoExcehange(response: Response, exchange: HttpServerExchange) {
         values.forEach { value -> exchange.responseHeaders.add(HttpString(name), value) }
     }
 
-    exchange.statusCode = response.statusCode
+
 
     response.body.forEach { body ->
         val readAllBytes = body.readBytes()
-        exchange.responseContentLength = readAllBytes.size.toLong()
-        exchange.outputStream.write(readAllBytes)
+        exchange.responseSender.send(ByteBuffer.wrap(readAllBytes))
     }
 }
 

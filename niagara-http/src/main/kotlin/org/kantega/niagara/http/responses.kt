@@ -34,7 +34,7 @@ fun classPathResources(prefix: String): (Request) -> Response = { request ->
 
 }
 
-fun classPathResource(name: String): (Request) -> Response = { request ->
+fun classPathResource(name: String): (Request) -> Response = { _ ->
 
 
     val maybeInputStream =

@@ -23,7 +23,7 @@ fun main(args: Array<String>) {
     val jsonWithPhoneUpdated =
       pathToPhone.updateResult(json, { js -> js.asString().map { s -> JsonString(s.reversed()) } })
 
-    println(JsonWriter.writePretty(jsonWithPhoneUpdated orElse JsonString("")))
+    println(JsonWriter.writePretty(jsonWithPhoneUpdated getOrElse JsonString("")))
 
 }
 

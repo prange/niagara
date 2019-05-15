@@ -55,11 +55,9 @@ data class Request(
             return Request(TreeMap.empty(), TreeMap.empty(), params, "", uri, unresoved, List.empty(), "GET")
         }
 
-        fun post(path: String): Request {
-            val uri = URI.create(path)
-            val unresoved = List.of<String>(*uri.path.split("/".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray())
-            return Request(TreeMap.empty(), TreeMap.empty(), TreeMap.empty(), "", uri, unresoved, List.empty(), "POST")
-        }
+        fun postRequest(path: String): Request =
+            getRequest(path).copy(method = "POST")
+
 
         fun params(uri: URI): TreeMap<String, List<String>> {
             val headerString = Option.of(uri.rawQuery).getOrElse("")
