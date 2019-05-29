@@ -7,13 +7,13 @@ import org.kantega.niagara.data.curried
 
 typealias JsonDecoder<A> = (JsonValue) -> JsonResult<A>
 
-fun <A, B> JsonDecoder<A>.map(f: (A) -> B): JsonDecoder<B> =
+infix fun <A, B> JsonDecoder<A>.map(f: (A) -> B): JsonDecoder<B> =
   { p1 -> this(p1).map(f) }
 
 fun <A, B> JsonDecoder<A>.tryMap(f: (A) -> JsonResult<B>): JsonDecoder<B> =
   { p1 -> this(p1).bind(f) }
 
-fun <A, B> JsonDecoder<A>.bind(f: (A) -> JsonDecoder<B>): JsonDecoder<B> =
+infix fun <A, B> JsonDecoder<A>.bind(f: (A) -> JsonDecoder<B>): JsonDecoder<B> =
   { p1 -> this(p1).bind { a -> f(a)(p1) } }
 
 infix fun <A, B> JsonDecoder<(A) -> B>.apply(v: JsonDecoder<A>): JsonDecoder<B> =

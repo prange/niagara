@@ -9,9 +9,7 @@ data class HCons<out H, out T : HList>(val head: H, val tail: T) : HList(1 + tai
 
 object HNil : HList(0)
 
-/**
- * HList supported arity is up to product of 22 elements
- */
+
 typealias HList1<A> = HCons<A, HNil>
 
 typealias HList2<A, B> = HCons<A, HCons<B, HNil>>
@@ -61,7 +59,15 @@ fun <A, B, C, D, E, F, G> HList7<A, B, C, D, E, F, G>.tuple() =
 fun <A, B, C, D, E, F, G,H> HList8<A, B, C, D, E, F, G,H>.tuple() =
   Tuple8(head, tail.head, tail.tail.head, tail.tail.tail.head, tail.tail.tail.tail.head, tail.tail.tail.tail.head, tail.tail.tail.tail.tail.head,tail.tail.tail.tail.tail.tail.head)
 
-
+fun <A> hList(a:A) = HCons(a,HNil)
+fun <A,B> hList(a:A,b:B) = HCons(a,hList(b))
+fun <A,B,C> hList(a:A,b:B,c:C) = HCons(a,hList(b,c))
+fun <A,B,C,D> hList(a:A,b:B,c:C,d:D) = HCons(a,hList(b,c,d))
+fun <A,B,C,D,E> hList(a:A,b:B,c:C,d:D,e:E) = HCons(a,hList(b,c,d,e))
+fun <A,B,C,D,E,F> hList(a:A,b:B,c:C,d:D,e:E,f:F) = HCons(a,hList(b,c,d,e,f))
+fun <A,B,C,D,E,F,G> hList(a:A,b:B,c:C,d:D,e:E,f:F,g:G) = HCons(a,hList(b,c,d,e,f,g))
+fun <A,B,C,D,E,F,G,H> hList(a:A,b:B,c:C,d:D,e:E,f:F,g:G,h:H) = HCons(a,hList(b,c,d,e,f,g,h))
+fun <A,B,C,D,E,F,G,H,I> hList(a:A,b:B,c:C,d:D,e:E,f:F,g:G,h:H,i:I) = HCons(a,hList(b,c,d,e,f,g,h,i))
 
 data class HListPrepend<V>(val value:V) {
      fun <A:HList> invoke(hlist: A): HCons<V, A> =

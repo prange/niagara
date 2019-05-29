@@ -63,6 +63,7 @@ class NiagaraTaskHttpHandler(val route: Route<Task<Response>>, val executor: (Ta
                     },
                     { outputFailed ->
                         exchange.endExchange()
+                        println(outputFailed.failure)
                         throw RuntimeException(outputFailed.toString())
                     }
 

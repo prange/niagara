@@ -19,6 +19,7 @@ import org.kantega.niagara.eff.runTask
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import io.undertow.websockets.core.WebSocketChannel
+import io.vavr.kotlin.option
 import org.kantega.niagara.eff.enqueue
 import java.util.Collections.newSetFromMap
 import java.util.concurrent.ScheduledExecutorService
@@ -49,7 +50,7 @@ class NiagaraWebsocketHandler(
               val maybeHandshaker =
                 handshakes
                   .find { hs -> hs.matches(facade) }
-                  .toOption()
+                  .option()
 
               maybeHandshaker
                 .onEmpty {

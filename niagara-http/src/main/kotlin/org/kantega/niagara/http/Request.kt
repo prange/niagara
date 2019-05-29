@@ -4,10 +4,12 @@ import io.vavr.Tuple2
 import io.vavr.collection.List
 import io.vavr.collection.TreeMap
 import io.vavr.control.Option
+import io.vavr.kotlin.*
 import org.kantega.niagara.data.update
 import java.io.UnsupportedEncodingException
 import java.net.URI
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 data class Request(
@@ -15,10 +17,12 @@ data class Request(
   val requestHeaders: TreeMap<String, List<String>>,
   val queryParams: TreeMap<String, List<String>>,
   val body: String,
-  val requestUri: URI,
   val remainingPath: List<String>,
   val resolvedPath: List<String>,
-  val method: String) {
+  val method: String,
+  val scheme: String = "https",
+  val maybeHost: Option<String> = Option.none()
+) {
 
     fun withHeader(name: String, value: String) =
       copy(requestHeaders = requestHeaders.update(name, { list -> list.prepend(value) }, { List.of(value) }))
@@ -46,17 +50,40 @@ data class Request(
         remainingPath = remainingPath.tail()).advancePath(count - 1)
 
 
+    fun toUri(): String {
+        val path = maybeHost.map { host -> "$scheme://$host" }.getOrElse("") + "/" + (remainingPath.prependAll(resolvedPath)).mkString("/")
+        val q =
+          if (queryParams.isEmpty)
+              ""
+          else
+              "?" + queryParams
+                .toList()
+                .map { (key, value) ->
+
+                    URLEncoder.encode(key, "UTF-8") +
+                      "=" +
+                      URLEncoder.encode(value.head(), "UTF-8")
+                }
+                .mkString("&")
+
+        return path + q
+    }
+
+    fun path(): String =
+      "/" + (remainingPath.prependAll(resolvedPath)).mkString("/")
+
     companion object {
 
         fun getRequest(path: String): Request {
             val uri = URI.create(path)
+            val maybeHost = Option.of(uri.host)
             val unresoved = List.of<String>(*uri.path.substringBefore("?").split("/".toRegex()).filter({ it.isNotEmpty() }).toTypedArray())
             val params = params(uri)
-            return Request(TreeMap.empty(), TreeMap.empty(), params, "", uri, unresoved, List.empty(), "GET")
+            return Request(TreeMap.empty(), TreeMap.empty(), params, "", unresoved, List.empty(), "GET",maybeHost=maybeHost)
         }
 
         fun postRequest(path: String): Request =
-            getRequest(path).copy(method = "POST")
+          getRequest(path).copy(method = "POST")
 
 
         fun params(uri: URI): TreeMap<String, List<String>> {

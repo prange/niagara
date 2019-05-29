@@ -25,7 +25,6 @@ fun fromExchange(exchange: HttpServerExchange) =
     toMap(exchange.requestHeaders),
     TreeMap.ofAll<String, Deque<String>>(exchange.queryParameters).mapValues({ d -> List.ofAll(d) }),
     readBytesToString(exchange.inputStream),
-    URI.create(exchange.requestURI),
     List.of(*exchange.requestPath.split("/".toRegex()).filter({ it.isNotEmpty() }).toTypedArray()),
     List.empty(),
     exchange.requestMethod.toString())
