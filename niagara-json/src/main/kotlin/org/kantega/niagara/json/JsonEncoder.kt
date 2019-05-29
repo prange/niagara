@@ -26,7 +26,7 @@ data class JsonObjectBuilder<A,B>(val f:(JsonObject, A)->P2<JsonObject,B>) : Jso
 fun <A,B> encode(destructor: (A) -> HCons<B,HList>): JsonObjectBuilder<A,HCons<B,HList>> =
   JsonObjectBuilder({ jsonObj, a->p(jsonObj,destructor(a))})
 
-fun <A, B, L : HCons<B,T>,T:HList> JsonObjectBuilder<A, L>.field(name: String, aEncoder: JsonEncoder<B>): JsonObjectBuilder<A, T> = append{ jsonObj, hList ->
+fun <A, B, T, L : HCons<B,T>> JsonObjectBuilder<A, L>.field(name: String, aEncoder: JsonEncoder<B>): JsonObjectBuilder<A, T> = append{ jsonObj, hList ->
     p(jsonObj.set(name, aEncoder(hList.head)), hList.tail)
 }
 
