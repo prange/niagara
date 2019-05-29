@@ -13,7 +13,6 @@ import io.undertow.websockets.spi.AsyncWebSocketHttpServerExchange
 import org.kantega.niagara.eff.Task
 import org.jctools.queues.MpscArrayQueue
 import org.kantega.niagara.eff.Source
-import org.kantega.niagara.data.toOption
 import org.kantega.niagara.http.*
 import org.kantega.niagara.eff.runTask
 import java.io.IOException
