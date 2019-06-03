@@ -56,3 +56,28 @@ interface Product7<A,B,C,D,E,F,G>{
     fun component7():G
     fun hList() = hList(component1(),component2(),component3(),component4(),component5(),component6(),component7())
 }
+
+interface Product8<A,B,C,D,E,F,G,H>{
+    fun component1():A
+    fun component2():B
+    fun component3():C
+    fun component4():D
+    fun component5():E
+    fun component6():F
+    fun component7():G
+    fun component8():H
+    fun hList() = hList(component1(),component2(),component3(),component4(),component5(),component6(),component7(),component8())
+}
+
+interface Product9<A,B,C,D,E,F,G,H,I>{
+    fun component1():A
+    fun component2():B
+    fun component3():C
+    fun component4():D
+    fun component5():E
+    fun component6():F
+    fun component7():G
+    fun component8():H
+    fun component9():I
+    fun hList() = hList(component1(),component2(),component3(),component4(),component5(),component6(),component7(),component8(),component9())
+}
