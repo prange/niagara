@@ -33,7 +33,7 @@ interface JsonValue {
       JsonResult.fail("You are trying to convert a $this to a string")
 
     fun asBoolean(): JsonResult<Boolean> =
-      JsonResult.fail("You are trying to convert a $this to a boolean")
+      JsonResult.fail("You are trying to convert a $this to a boolean.")
 
     fun asArray(): JsonResult<JsonArray> =
       JsonResult.fail("You are trying to convert a $this to an array")

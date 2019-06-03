@@ -7,13 +7,13 @@ import org.kantega.niagara.data.curried
 
 typealias JsonDecoder<A> = (JsonValue) -> JsonResult<A>
 
-infix fun <A, B> JsonDecoder<A>.map(f: (A) -> B): JsonDecoder<B> =
+inline infix fun <A, reified B> JsonDecoder<A>.map(crossinline f: (A) -> B): JsonDecoder<B> =
   { p1 -> this(p1).map(f) }
 
-fun <A, B> JsonDecoder<A>.tryMap(f: (A) -> JsonResult<B>): JsonDecoder<B> =
+inline fun <A, reified B> JsonDecoder<A>.tryMap(crossinline f: (A) -> JsonResult<B>): JsonDecoder<B> =
   { p1 -> this(p1).bind(f) }
 
-infix fun <A, B> JsonDecoder<A>.bind(f: (A) -> JsonDecoder<B>): JsonDecoder<B> =
+inline infix fun <A, reified B> JsonDecoder<A>.bind(crossinline f: (A) -> JsonDecoder<B>): JsonDecoder<B> =
   { p1 -> this(p1).bind { a -> f(a)(p1) } }
 
 infix fun <A, B> JsonDecoder<(A) -> B>.apply(v: JsonDecoder<A>): JsonDecoder<B> =
@@ -65,10 +65,10 @@ val decodeLong: JsonDecoder<Long> =
 val decodeBool: JsonDecoder<Boolean> =
   { it.asBoolean() }
 
-fun <A> decodeField(name: String, valueDecoder: JsonDecoder<A>): JsonDecoder<A> =
+inline fun <reified A> decodeField(name: String, crossinline valueDecoder: JsonDecoder<A>): JsonDecoder<A> =
   { it.field(name).bind(valueDecoder) }
 
-fun <A, B> JsonDecoder<(A) -> B>.field(name: String, decoderForField: JsonDecoder<A>): JsonDecoder<B> =
+inline fun <reified A, reified B> JsonDecoder<(A) -> B>.field(name: String, crossinline decoderForField: JsonDecoder<A>): JsonDecoder<B> =
   this.apply(decodeField(name, decoderForField))
 
 fun <A, B> JsonDecoder<(A) -> B>.value(a: A): JsonDecoder<B> =
