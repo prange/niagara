@@ -14,6 +14,9 @@ data class JsonEndec<A>(val encoder:JsonEncoder<A>, val decoder: JsonDecoder<A>)
 
 data class EndecBuilder<OBJ,C,REST>(val encoder:JsonObjectBuilder<OBJ,REST>, val decoder: JsonDecoder<C>)
 
+fun <A> EndecBuilder<A,A,*>.build() =
+  JsonEndec(this.encoder,this.decoder)
+
 fun <OBJ,FIRST,REST,TAIL:HList> EndecBuilder<OBJ,(FIRST)->REST,HCons<FIRST,TAIL>>
   .field(name:String,endec:JsonEndec<FIRST>):EndecBuilder<OBJ,REST,TAIL> =
   EndecBuilder(encoder.field(name,endec.encoder),decoder.field(name,endec.decoder))
