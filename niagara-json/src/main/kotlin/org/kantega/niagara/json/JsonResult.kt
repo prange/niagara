@@ -10,15 +10,25 @@ sealed class JsonResult<out A> {
 
     abstract fun <T> fold(onFail: (NonEmptyList<String>) -> T, onSuccess: (A) -> T): T
 
-    fun <B> bind(f: (A) -> JsonResult<B>): JsonResult<B> =
-      fold({ nel -> JsonResult.fail(nel) }, { a -> f(a) })
+    inline fun <reified B> bind(crossinline f: (A) -> JsonResult<B>): JsonResult<B> =
+      fold(
+        { nel -> fail(nel) },
+        { a ->
+            try {
+                f(a)
+            } catch (e: Exception) {
+                val tpe = B::class.java.simpleName
+                jFail("Could not convert $a to JsonResult<$tpe>: ${e.javaClass.simpleName} : ${e.message}")
+            }
+        })
 
-    fun <B> map(f: (A) -> B): JsonResult<B> =
+    inline fun <reified B> map(crossinline f: (A) -> B): JsonResult<B> =
       bind({ a ->
           try {
               jOk(f(a))
           } catch (e: Exception) {
-              jFail<B>(e.javaClass.simpleName + ":" + e.message)
+              val tpe = B::class.java.simpleName
+              jFail<B>("Could not convert $a to $tpe: ${e.javaClass.simpleName} : ${e.message}")
           }
       })
 
@@ -29,13 +39,13 @@ sealed class JsonResult<out A> {
     companion object {
 
         fun <A> fail(t: Throwable): JsonResult<A> =
-          JsonResult.fail(t.javaClass.simpleName + ":" + t.message.orEmpty())
+          fail(t.javaClass.simpleName + ":" + t.message.orEmpty())
 
         fun <A> fail(msg: String, vararg tail: String): JsonResult<A> =
-          JsonResult.fail(NonEmptyList.of(msg, *tail))
+          fail(NonEmptyList.of(msg, *tail))
 
-        fun <A> fail(nel: NonEmptyList<String>) =
-          JsonFail<A>(nel)
+        fun <A> fail(nel: NonEmptyList<String>):JsonResult<A> =
+          JsonFail(nel)
 
         fun <A> success(a: A): JsonResult<A> =
           JsonSuccess(a)
@@ -63,7 +73,7 @@ infix fun <A, B> JsonResult<(A) -> B>.apply(v: JsonResult<A>): JsonResult<B> =
       else                                    -> throw Error("unreachable code")
   }
 
-fun <A> JsonResult<JsonValue>.decode(decoder: JsonDecoder<A>): JsonResult<A> =
+inline fun <reified A> JsonResult<JsonValue>.decode(crossinline decoder: JsonDecoder<A>): JsonResult<A> =
   bind(decoder)
 
 fun <A> jFail(reason: String) =
