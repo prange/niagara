@@ -1,6 +1,7 @@
 package org.kantega.niagara.json
 
 import io.vavr.collection.List
+import io.vavr.control.Try
 import org.kantega.niagara.data.NonEmptyList
 import org.kantega.niagara.data.Semigroup
 
@@ -35,6 +36,7 @@ sealed class JsonResult<out A> {
     override fun toString(): String {
         return fold({ f -> "JsonResult(${f.toList().joinToString { it }})" }, { s -> "JsonResult(" + s.toString() + ")" })
     }
+
 
     companion object {
 
@@ -100,7 +102,6 @@ infix fun <A> JsonResult<A>.orElse(a: JsonResult<A>): JsonResult<A> =
 infix fun <A> JsonResult<A>.orElse(f: (NonEmptyList<String>) -> JsonResult<A>): JsonResult<A> =
   this.fold({ nel -> f(nel) }, { this })
 
-
 fun JsonResult<JsonValue>.field(path: String): JsonResult<JsonValue> =
   this.field(JsonPath(path))
 
@@ -109,6 +110,9 @@ fun JsonResult<JsonValue>.field(path: JsonPath): JsonResult<JsonValue> =
 
 fun JsonResult<JsonValue>.asArray(): JsonResult<JsonArray> =
   this.bind { v -> v.asArray() }
+
+fun JsonResult<JsonValue>.asObject(): JsonResult<JsonObject> =
+  this.bind { v -> v.asObject() }
 
 fun JsonResult<JsonArray>.mapJsonArray(f: (JsonValue) -> JsonResult<JsonValue>): JsonResult<JsonArray> =
   this.bind { array ->

@@ -4,7 +4,7 @@ import io.vavr.collection.List
 import io.vavr.collection.TreeMap
 import java.math.BigDecimal
 
-interface JsonValue {
+sealed class JsonValue {
 
     fun <T> fold(
       onNull: (JsonNull) -> T,
@@ -21,25 +21,39 @@ interface JsonValue {
             is JsonString -> onString(this)
             is JsonObject -> onObject(this)
             is JsonArray -> onArray(this)
-            else -> throw Error("You implemented JsonValue, but you shouldn't")
         }
     }
 
 
     fun asNumber(): JsonResult<BigDecimal> =
-      JsonResult.fail("You are trying to convert a $this to a number")
+      when(this){
+          is JsonNumber -> JsonResult.success(n)
+          else -> JsonResult.fail("You are trying to convert a $this to a number.")
+      }
 
     fun asString(): JsonResult<String> =
-      JsonResult.fail("You are trying to convert a $this to a string")
+      when(this){
+          is JsonString -> JsonResult.success(s)
+          else -> JsonResult.fail("You are trying to convert a $this to a string.")
+      }
 
     fun asBoolean(): JsonResult<Boolean> =
-      JsonResult.fail("You are trying to convert a $this to a boolean.")
+      when(this){
+          is JsonBool -> JsonResult.success(value)
+          else -> JsonResult.fail("You are trying to convert a $this to a boolean.")
+      }
 
     fun asArray(): JsonResult<JsonArray> =
-      JsonResult.fail("You are trying to convert a $this to an array")
+      when(this){
+          is JsonArray -> JsonResult.success(this)
+          else -> JsonResult.fail("You are trying to convert a $this to an array.")
+      }
 
     fun asObject(): JsonResult<JsonObject> =
-      JsonResult.fail("You are trying to convert a $this to an object")
+      when(this){
+          is JsonObject -> JsonResult.success(this)
+          else -> JsonResult.fail("You are trying to convert a $this to an object.")
+      }
 
     fun field(name: String): JsonResult<JsonValue> =
       asObject().bind { obj ->
@@ -50,17 +64,12 @@ interface JsonValue {
 
 }
 
-object JsonNull : JsonValue
+object JsonNull : JsonValue()
 
-data class JsonBool(val value:Boolean) : JsonValue {
+data class JsonBool(val value:Boolean) : JsonValue ()
 
-    override fun asBoolean() =
-      JsonResult.success(value)
-}
+data class JsonNumber(val n: BigDecimal) : JsonValue() {
 
-data class JsonNumber(val n: BigDecimal) : JsonValue {
-    override fun asNumber(): JsonResult<BigDecimal> =
-      JsonResult.success(n)
 
     companion object {
         operator fun invoke(l: Long) =
@@ -71,9 +80,7 @@ data class JsonNumber(val n: BigDecimal) : JsonValue {
     }
 }
 
-data class JsonString(val s: String) : JsonValue {
-    override fun asString(): JsonResult<String> =
-      JsonResult.success(s)
+data class JsonString(val s: String) : JsonValue() {
 
     override fun toString(): String {
         return "\"$s\""
@@ -82,9 +89,7 @@ data class JsonString(val s: String) : JsonValue {
 
 
 
-data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue {
-    override fun asObject(): JsonResult<JsonObject> =
-      JsonResult.success(this)
+data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue() {
 
     fun update(f: (TreeMap<String,JsonValue>) -> TreeMap<String,JsonValue>): JsonObject =
       copy(m = f(m))
@@ -111,13 +116,12 @@ data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue {
     }
 }
 
-data class JsonArray(val a: List<JsonValue>) : JsonValue {
+data class JsonArray(val a: List<JsonValue>) : JsonValue() {
 
     fun update(f:(List<JsonValue>)->List<JsonValue>) =
       copy(a = f(a))
 
-    override fun asArray(): JsonResult<JsonArray> =
-      JsonResult.success(this)
+
 
     companion object {
         operator fun invoke(vararg elements:JsonValue) =
