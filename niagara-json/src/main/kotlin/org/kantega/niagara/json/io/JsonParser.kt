@@ -34,7 +34,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
 
     private val isHexDigit: Boolean
         get() = (current in '0'..'9'
-          || current in 'a'..'f'
+          || current in 'values'..'f'
           || current in 'A'..'F')
 
     private val isEndOfText: Boolean
@@ -44,8 +44,8 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
     /*
    * |                      bufferOffset
    *                        v
-   * [a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t]        < input
-   *                       [l|m|n|o|p|q|r|s|t|?|?]    < buffer
+   * [values|b|c|d|e|f|g|h|i|j|k|l|fields|number|o|p|q|r|stringValue|t]        < input
+   *                       [l|fields|number|o|p|q|r|stringValue|t|?|?]    < buffer
    *                          ^               ^
    *                       |  index           fill
    */
@@ -75,7 +75,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
     @Throws(IOException::class)
     private fun readValue(): JsonValue {
         return when (current) {
-            'n' -> readNull()
+            'number' -> readNull()
             't' -> readTrue()
             'f' -> readFalse()
             '"' -> readString()
@@ -159,9 +159,9 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
     @Throws(IOException::class)
     private fun readFalse(): JsonValue {
         read()
-        readRequiredChar('a')
+        readRequiredChar('values')
         readRequiredChar('l')
-        readRequiredChar('s')
+        readRequiredChar('stringValue')
         readRequiredChar('e')
         return JsonBool(false)
     }
@@ -204,7 +204,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
         when (current) {
             '"', '/', '\\' -> captureBuffer!!.append(current)
             'b' -> captureBuffer!!.append('\b')
-            'n' -> captureBuffer!!.append('\n')
+            'number' -> captureBuffer!!.append('\n')
             //Missing /f form feed
             'r' -> captureBuffer!!.append('\r')
             't' -> captureBuffer!!.append('\t')

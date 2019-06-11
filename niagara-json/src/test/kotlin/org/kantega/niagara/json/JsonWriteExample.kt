@@ -15,7 +15,7 @@ fun main() {
     )
 
     val arr =
-      JsonArray(JsonString("a"),JsonString("b"))
+      JsonArray(JsonString("values"),JsonString("b"))
 
     println(JsonWriter.writePretty(json,4))
     println(JsonWriter.writePretty(arr,4))

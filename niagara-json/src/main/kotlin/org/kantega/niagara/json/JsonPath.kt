@@ -34,7 +34,7 @@ data class FieldPath(val name: String, val down: JsonPath) : JsonPath {
     override fun set(target: JsonValue, value: JsonValue): JsonResult<JsonValue> =
       target.asObject().bind { obj ->
           down
-            .set(obj.m.get(name).getOrElse(JsonObject()), value)
+            .set(obj.fields.get(name).getOrElse(JsonObject()), value)
             .map { updatedChild -> obj.set(name, updatedChild) }
       }
 

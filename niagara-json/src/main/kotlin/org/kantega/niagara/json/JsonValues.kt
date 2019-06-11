@@ -27,39 +27,39 @@ sealed class JsonValue {
 
     fun asNumber(): JsonResult<BigDecimal> =
       when(this){
-          is JsonNumber -> JsonResult.success(n)
-          else -> JsonResult.fail("You are trying to convert a $this to a number.")
+          is JsonNumber -> JsonResult.success(number)
+          else -> JsonResult.fail("You are trying to convert values $this to values number.")
       }
 
     fun asString(): JsonResult<String> =
       when(this){
-          is JsonString -> JsonResult.success(s)
-          else -> JsonResult.fail("You are trying to convert a $this to a string.")
+          is JsonString -> JsonResult.success(stringValue)
+          else -> JsonResult.fail("You are trying to convert values $this to values string.")
       }
 
     fun asBoolean(): JsonResult<Boolean> =
       when(this){
           is JsonBool -> JsonResult.success(value)
-          else -> JsonResult.fail("You are trying to convert a $this to a boolean.")
+          else -> JsonResult.fail("You are trying to convert values $this to values boolean.")
       }
 
     fun asArray(): JsonResult<JsonArray> =
       when(this){
           is JsonArray -> JsonResult.success(this)
-          else -> JsonResult.fail("You are trying to convert a $this to an array.")
+          else -> JsonResult.fail("You are trying to convert values $this to an array.")
       }
 
     fun asObject(): JsonResult<JsonObject> =
       when(this){
           is JsonObject -> JsonResult.success(this)
-          else -> JsonResult.fail("You are trying to convert a $this to an object.")
+          else -> JsonResult.fail("You are trying to convert values $this to an object.")
       }
 
     fun field(name: String): JsonResult<JsonValue> =
       asObject().bind { obj ->
-          obj.m.get(name)
+          obj.fields.get(name)
             .map { JsonResult.success(it) }
-            .getOrElse(JsonResult.fail("The field $name did not exist in the object. Available fields are {${obj.m.keySet().mkString(", ")}}"))
+            .getOrElse(JsonResult.fail("The field $name did not exist in the object. Available fields are {${obj.fields.keySet().mkString(", ")}}"))
       }
 
 }
@@ -68,7 +68,7 @@ object JsonNull : JsonValue()
 
 data class JsonBool(val value:Boolean) : JsonValue ()
 
-data class JsonNumber(val n: BigDecimal) : JsonValue() {
+data class JsonNumber(val number: BigDecimal) : JsonValue() {
 
 
     companion object {
@@ -80,22 +80,22 @@ data class JsonNumber(val n: BigDecimal) : JsonValue() {
     }
 }
 
-data class JsonString(val s: String) : JsonValue() {
+data class JsonString(val stringValue: String) : JsonValue() {
 
     override fun toString(): String {
-        return "\"$s\""
+        return "\"$stringValue\""
     }
 }
 
 
 
-data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue() {
+data class JsonObject(val fields: TreeMap<String,JsonValue>) : JsonValue() {
 
     fun update(f: (TreeMap<String,JsonValue>) -> TreeMap<String,JsonValue>): JsonObject =
-      copy(m = f(m))
+      copy(fields = f(fields))
 
     fun set(name: String, value: JsonValue) =
-      JsonObject(m.put(name, value))
+      JsonObject(fields.put(name, value))
 
     companion object {
         operator fun invoke(vararg members:Pair<String,JsonValue>):JsonObject =
@@ -108,7 +108,7 @@ data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue() {
 
 
     override fun toString(): String {
-        return m.toList().joinToString (
+        return fields.toList().joinToString (
           prefix = "JsonObject(",
           postfix = ")",
           separator = ", ",
@@ -116,10 +116,10 @@ data class JsonObject(val m: TreeMap<String,JsonValue>) : JsonValue() {
     }
 }
 
-data class JsonArray(val a: List<JsonValue>) : JsonValue() {
+data class JsonArray(val values: List<JsonValue>) : JsonValue() {
 
     fun update(f:(List<JsonValue>)->List<JsonValue>) =
-      copy(a = f(a))
+      copy(values = f(values))
 
 
 

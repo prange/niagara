@@ -1,7 +1,6 @@
 package org.kantega.niagara.json
 
 import io.vavr.collection.List
-import io.vavr.control.Try
 import org.kantega.niagara.data.NonEmptyList
 import org.kantega.niagara.data.Semigroup
 
@@ -116,7 +115,7 @@ fun JsonResult<JsonValue>.asObject(): JsonResult<JsonObject> =
 
 fun JsonResult<JsonArray>.mapJsonArray(f: (JsonValue) -> JsonResult<JsonValue>): JsonResult<JsonArray> =
   this.bind { array ->
-      array.a.map(f).sequence().map { JsonArray(it) }
+      array.values.map(f).sequence().map { JsonArray(it) }
   }
 
 fun <A> List<JsonResult<A>>.sequence(): JsonResult<List<A>> =

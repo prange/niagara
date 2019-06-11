@@ -75,10 +75,13 @@ fun <A, B> JsonDecoder<(A) -> B>.value(a: A): JsonDecoder<B> =
   this.apply({ jOk(a) })
 
 fun <A> decodeArray(elemDecoder: JsonDecoder<A>): JsonDecoder<List<A>> =
-  { it.asArray().bind { list -> list.a.map(elemDecoder).traverseJsonResult() } }
+  { it.asArray().bind { list -> list.values.map(elemDecoder).traverseJsonResult() } }
 
 fun <A> List<JsonResult<A>>.traverseJsonResult(): JsonResult<List<A>> =
   this.foldRight(jOk(List.empty()), { ja, jas -> jas.bind { alist -> ja.map { a -> alist.prepend(a) } } })
 
 fun <A> JsonDecoder<A>.or(other: JsonDecoder<A>): JsonDecoder<A> =
   { jsonValue -> this(jsonValue).orElse({ other(jsonValue) }) }
+
+fun <A> succeed(a: A): JsonDecoder<A> =
+  { _ -> JsonResult.success(a) }
