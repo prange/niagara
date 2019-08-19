@@ -34,7 +34,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
 
     private val isHexDigit: Boolean
         get() = (current in '0'..'9'
-          || current in 'values'..'f'
+          || current in 'a'..'f'
           || current in 'A'..'F')
 
     private val isEndOfText: Boolean
@@ -75,7 +75,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
     @Throws(IOException::class)
     private fun readValue(): JsonValue {
         return when (current) {
-            'number' -> readNull()
+            'n' -> readNull()
             't' -> readTrue()
             'f' -> readFalse()
             '"' -> readString()
@@ -159,9 +159,9 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
     @Throws(IOException::class)
     private fun readFalse(): JsonValue {
         read()
-        readRequiredChar('values')
+        readRequiredChar('a')
         readRequiredChar('l')
-        readRequiredChar('stringValue')
+        readRequiredChar('s')
         readRequiredChar('e')
         return JsonBool(false)
     }
@@ -204,7 +204,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
         when (current) {
             '"', '/', '\\' -> captureBuffer!!.append(current)
             'b' -> captureBuffer!!.append('\b')
-            'number' -> captureBuffer!!.append('\n')
+            'n' -> captureBuffer!!.append('\n')
             //Missing /f form feed
             'r' -> captureBuffer!!.append('\r')
             't' -> captureBuffer!!.append('\t')

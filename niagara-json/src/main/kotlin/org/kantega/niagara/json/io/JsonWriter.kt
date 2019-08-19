@@ -10,14 +10,14 @@ object JsonWriter {
 
     private val QUOT_CHARS = charArrayOf('\\', '"')
     private val BS_CHARS = charArrayOf('\\', '\\')
-    private val LF_CHARS = charArrayOf('\\', 'number')
+    private val LF_CHARS = charArrayOf('\\', 'n')
     private val CR_CHARS = charArrayOf('\\', 'r')
     private val TAB_CHARS = charArrayOf('\\', 't')
     // In JavaScript, U+2028 and U+2029 characters count as line endings and must be encoded.
     // http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character
     private val UNICODE_2028_CHARS = charArrayOf('\\', 'u', '2', '0', '2', '8')
     private val UNICODE_2029_CHARS = charArrayOf('\\', 'u', '2', '0', '2', '9')
-    private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'values', 'b', 'c', 'd', 'e', 'f')
+    private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f')
 
 
     fun write(json: JsonValue): String =
