@@ -11,8 +11,8 @@ fun readSafely() {
     //Get the value using a when expression
     val value =
       when (nameResult) {
-          is JsonSuccess -> nameResult.value
           is JsonFail    -> nameResult.failures.toList().mkString(", ")
+          is JsonSuccess -> nameResult.value
       }
 
     //Get the value using fold
