@@ -54,7 +54,7 @@ fun readFields() {
 }
 ```
 But hey, we want the name, not the name wrapped in some result object. The thing is that
-you cannot know if the opeartion you performed on the json actually succeeded. You have a pretty
+you cannot know if the operation you performed on the json actually succeeded. You have a pretty
 good clue in this example since the input is crafted, but when the data comes from someone else
 the field you expect might be missing or the json type is wrong. The `JsonResult` therefore
 can be in two states: One success state which contains the expected value, or a failed state which
