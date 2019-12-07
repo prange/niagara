@@ -2,7 +2,7 @@
 
 
 Niagara-json is a lightweight and simple to use library for reading and writing json in Kotlin.
-The philosopy behind the framework is the principle of least surprise, which means it will
+The philosopy behind the library is the principle of least surprise, which means it will
 never throw an exception, all values are immutable and you can always rely on the types.
 
 You also have to define converters to your domain types (classes) yourself, the take is that in the
