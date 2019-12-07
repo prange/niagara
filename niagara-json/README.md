@@ -6,7 +6,7 @@ The philosopy behind the library is the principle of least surprise, which means
 never throw an exception, all values are immutable and you can always rely on the types.
 
 You also have to define converters to your domain types (classes) yourself, the take is that in the
-long run it is safer to not rely on the arbitrary names of the properties of your classes
+long run it is safer to not let the arbitrary names of the properties of your classes
 dictate the api surface of your application.
 
 Lets check out `JsonParseExample.kt` from the `test/o.k.n.j.examples` directory.
