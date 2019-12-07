@@ -368,7 +368,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
             } catch (ioe: IOException) {
                 JsonResult.fail("IOException while parsing: " + ioe.message)
             } catch (f: ParseFailure) {
-                JsonResult.fail("Failed to parse resource: " + f.message + ": line " + f.line + ", " + f.offset + ", i" + f.i)
+                JsonResult.fail("Could not parse json: " + f.message + ": line " + f.line + ", " + f.offset + ", i" + f.i)
             }
 
         }
@@ -379,7 +379,7 @@ class JsonParser private constructor(private val reader: Reader, buffersize: Int
             } catch (ioe: IOException) {
                 JsonResult.fail("IOException while parsing: " + ioe.message)
             } catch (f: ParseFailure) {
-                JsonResult.fail("Failed to parse resource: " + f.message + ": line " + f.line + ", " + f.offset + ", i" + f.i)
+                JsonResult.fail("Could not parse json: " + f.message + ": line " + f.line + ", " + f.offset + ", i" + f.i)
             }
 
         }

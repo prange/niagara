@@ -53,24 +53,24 @@ sealed class JsonResult<out A> {
     }
 }
 
-data class JsonSuccess<A>(val a: A) : JsonResult<A>() {
+data class JsonSuccess<A>(val value: A) : JsonResult<A>() {
     override fun <T> fold(onFail: (NonEmptyList<String>) -> T, onSuccess: (A) -> T) =
-      onSuccess(a)
+      onSuccess(value)
 
 }
 
-data class JsonFail<A>(val failNel: NonEmptyList<String>) : JsonResult<A>() {
+data class JsonFail<A>(val failures: NonEmptyList<String>) : JsonResult<A>() {
     override fun <T> fold(onFail: (NonEmptyList<String>) -> T, onSuccess: (A) -> T): T =
-      onFail(failNel)
+      onFail(failures)
 
 }
 
 infix fun <A, B> JsonResult<(A) -> B>.apply(v: JsonResult<A>): JsonResult<B> =
   when {
-      this is JsonSuccess && v is JsonSuccess -> jOk(this.a(v.a))
-      this is JsonFail && v is JsonFail       -> JsonResult.fail(this.failNel + v.failNel)
-      this is JsonFail                        -> JsonResult.fail(this.failNel)
-      v is JsonFail                           -> JsonResult.fail(v.failNel)
+      this is JsonSuccess && v is JsonSuccess -> jOk(this.value(v.value))
+      this is JsonFail && v is JsonFail       -> JsonResult.fail(this.failures + v.failures)
+      this is JsonFail                        -> JsonResult.fail(this.failures)
+      v is JsonFail                           -> JsonResult.fail(v.failures)
       else                                    -> throw Error("unreachable code")
   }
 
@@ -145,10 +145,10 @@ fun JsonResult<JsonValue>.asInt(): JsonResult<Int> =
 data class JsonResultSemigroup<A>(val aSemigroup: Semigroup<A>) : Semigroup<JsonResult<A>> {
     override fun invoke(p1: JsonResult<A>, p2: JsonResult<A>): JsonResult<A> {
         return when {
-            p1 is JsonSuccess && p2 is JsonSuccess -> jOk(aSemigroup(p1.a, p2.a))
-            p1 is JsonFail && p2 is JsonFail       -> JsonResult.fail(p1.failNel + p2.failNel)
-            p1 is JsonFail && p2 is JsonSuccess    -> JsonResult.fail(p1.failNel)
-            p1 is JsonSuccess && p2 is JsonFail    -> JsonResult.fail(p2.failNel)
+            p1 is JsonSuccess && p2 is JsonSuccess -> jOk(aSemigroup(p1.value, p2.value))
+            p1 is JsonFail && p2 is JsonFail       -> JsonResult.fail(p1.failures + p2.failures)
+            p1 is JsonFail && p2 is JsonSuccess    -> JsonResult.fail(p1.failures)
+            p1 is JsonSuccess && p2 is JsonFail    -> JsonResult.fail(p2.failures)
             else                                   -> throw Error("unreachable code")
         }
     }

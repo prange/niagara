@@ -1,5 +1,6 @@
-package org.kantega.niagara.json
+package org.kantega.niagara.json.examples
 
+import org.kantega.niagara.json.*
 import org.kantega.niagara.json.io.JsonWriter
 
 fun main(args: Array<String>) {
