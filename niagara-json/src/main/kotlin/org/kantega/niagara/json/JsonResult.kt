@@ -150,6 +150,13 @@ inline fun <A, B, C, reified D> bind(aResult: JsonResult<A>, bResult: JsonResult
       bResult.bind { b -> cResult.map { c -> joinF(a, b, c) } }
   }
 
+inline fun <A, B, C, D, reified E> bind(aResult: JsonResult<A>, bResult: JsonResult<B>, cResult: JsonResult<C>, dResult: JsonResult<D>, crossinline joinF: (A, B, C, D) -> E): JsonResult<E> =
+  aResult.bind { a ->
+      bResult.bind { b ->
+          cResult.bind { c -> dResult.map { d -> joinF(a, b, c, d) } }
+      }
+  }
+
 data class JsonResultSemigroup<A>(val aSemigroup: Semigroup<A>) : Semigroup<JsonResult<A>> {
     override fun invoke(p1: JsonResult<A>, p2: JsonResult<A>): JsonResult<A> {
         return when {
