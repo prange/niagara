@@ -89,3 +89,6 @@ fun readSafely() {
 There are two options: Using a `when` expression or using the `fold` function. The `fold`
 version is less verbose, and takes in two lambdas, one that handles the failure case and one
 that handles the success. Bot lambdas must return the same type (int this example both return  `String`)
+
+
+_Do you want to read more? Give a thumbs up on https://github.com/prange/niagara/issues/1_
