@@ -45,7 +45,7 @@ sealed class JsonResult<out A> {
         fun <A> fail(msg: String, vararg tail: String): JsonResult<A> =
           fail(NonEmptyList.of(msg, *tail))
 
-        fun <A> fail(nel: NonEmptyList<String>):JsonResult<A> =
+        fun <A> fail(nel: NonEmptyList<String>): JsonResult<A> =
           JsonFail(nel)
 
         fun <A> success(a: A): JsonResult<A> =
@@ -141,6 +141,14 @@ fun JsonResult<JsonValue>.asString(): JsonResult<String> =
 
 fun JsonResult<JsonValue>.asInt(): JsonResult<Int> =
   this.bind { it.asNumber() }.map { bd -> bd.toInt() }
+
+inline fun <A, B, reified C> bind(aResult: JsonResult<A>, bResult: JsonResult<B>, crossinline joinF: (A, B) -> C): JsonResult<C> =
+  aResult.bind { a -> bResult.map { b -> joinF(a, b) } }
+
+inline fun <A, B, C, reified D> bind(aResult: JsonResult<A>, bResult: JsonResult<B>, cResult: JsonResult<C>, crossinline joinF: (A, B, C) -> D): JsonResult<D> =
+  aResult.bind { a ->
+      bResult.bind { b -> cResult.map { c -> joinF(a, b, c) } }
+  }
 
 data class JsonResultSemigroup<A>(val aSemigroup: Semigroup<A>) : Semigroup<JsonResult<A>> {
     override fun invoke(p1: JsonResult<A>, p2: JsonResult<A>): JsonResult<A> {
